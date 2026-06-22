@@ -1,0 +1,92 @@
+[
+  {
+    "id": "ORD-10421",
+    "customer": "Acme Robotics",
+    "amount": 12450,
+    "placed": "2026-04-28",
+    "expected": "2026-04-30",
+    "status": "delayed",
+    "days_delayed": 4
+  },
+  {
+    "id": "ORD-10418",
+    "customer": "Cloudbyte Co.",
+    "amount": 3200,
+    "placed": "2026-04-27",
+    "expected": "2026-04-29",
+    "status": "delayed",
+    "days_delayed": 5
+  },
+  {
+    "id": "ORD-10412",
+    "customer": "Northwest Foods",
+    "amount": 8970,
+    "placed": "2026-04-27",
+    "expected": "2026-05-01",
+    "status": "in_transit",
+    "days_delayed": 0
+  },
+  {
+    "id": "ORD-10099",
+    "customer": "Beta Logistics",
+    "amount": 1190,
+    "placed": "2026-04-26",
+    "expected": "2026-04-28",
+    "status": "delivered",
+    "days_delayed": 0
+  },
+  {
+    "id": "ORD-10087",
+    "customer": "Helio Medical",
+    "amount": 22300,
+    "placed": "2026-04-25",
+    "expected": "2026-04-30",
+    "status": "in_transit",
+    "days_delayed": 0
+  },
+  {
+    "id": "ORD-10081",
+    "customer": "Quanta Studios",
+    "amount": 6540,
+    "placed": "2026-04-24",
+    "expected": "2026-04-27",
+    "status": "delayed",
+    "days_delayed": 4
+  },
+  {
+    "id": "ORD-10077",
+    "customer": "Ridgeway Press",
+    "amount": 2750,
+    "placed": "2026-04-24",
+    "expected": "2026-04-28",
+    "status": "delivered",
+    "days_delayed": 0
+  },
+  {
+    "id": "ORD-10042",
+    "customer": "Polaris Energy",
+    "amount": 45000,
+    "placed": "2026-04-22",
+    "expected": "2026-04-26",
+    "status": "delivered",
+    "days_delayed": 0
+  },
+  {
+    "id": "ORD-10031",
+    "customer": "Nimbus Health",
+    "amount": 5800,
+    "placed": "2026-04-21",
+    "expected": "2026-04-24",
+    "status": "delayed",
+    "days_delayed": 6
+  },
+  {
+    "id": "ORD-10018",
+    "customer": "Vector Bikes",
+    "amount": 1820,
+    "placed": "2026-04-20",
+    "expected": "2026-04-23",
+    "status": "delivered",
+    "days_delayed": 0
+  }
+]
