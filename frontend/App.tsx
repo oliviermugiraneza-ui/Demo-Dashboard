@@ -1,6 +1,7 @@
 import { Routes, Route, useLocation } from 'react-router-dom'
 import { Toaster } from './lib/shadcn/sonner'
 import AppShell from './components/AppShell'
+import { HeaderBadgeProvider } from './context/HeaderBadgeContext'
 import HomePage         from './pages/HomePage'
 import KPIPage          from './pages/KPIPage'
 import TrackerPage      from './pages/TrackerPage'
@@ -10,30 +11,35 @@ import CockpitPage      from './pages/CockpitPage'
 import CostPage         from './pages/CostPage'
 import DemoRequestPage  from './pages/DemoRequestPage'
 import AdminConfigPage  from './pages/AdminConfigPage'
+import BacklogPage      from './pages/BacklogPage'
 
 const PAGE_TITLES: Record<string, string> = {
-  '/home':         'Home',
-  '/':             'Demo KPIs',
-  '/tracker':      'Demo Tracker',
-  '/calendar':     'Demo Calendar',
-  '/post-demo':    'Post Demo Analytics',
-  '/demo-approval': 'Demo Approval',
-  '/cost':         'Demo Cost',
-  '/demo-request': 'Demo Request',
-  '/admin':        'Admin',
+  '/home':          'HOME',
+  '/':              'KPIs',
+  '/backlog':       'BACKLOG',
+  '/tracker':       'TRACKER',
+  '/calendar':      'CALENDAR',
+  '/post-demo':     'POST DEMO',
+  '/demo-approval': 'APPROVAL',
+  '/cost':          'COST',
+  '/demo-request':  'REQUEST',
+  '/admin':         'ADMIN',
 }
 
 function AppContent() {
   const location = useLocation()
+
   const pageTitle = PAGE_TITLES[location.pathname]
-    ?? (location.pathname.startsWith('/demo-request') ? 'Demo Request'
-       : location.pathname.startsWith('/admin') ? 'Admin'
-       : 'Wayve Demo Ops')
+    ?? (location.pathname.startsWith('/demo-request') ? 'REQUEST'
+       : location.pathname.startsWith('/admin')        ? 'ADMIN'
+       : location.pathname.startsWith('/backlog')      ? 'BACKLOG'
+       : 'WAYVE DEMO OPS')
 
   return (
     <AppShell pageTitle={pageTitle}>
       <Routes>
         <Route path="/home"           element={<HomePage />} />
+        <Route path="/backlog"        element={<BacklogPage />} />
         <Route path="/"               element={<KPIPage />} />
         <Route path="/tracker"        element={<TrackerPage />} />
         <Route path="/calendar"       element={<CalendarPage />} />
@@ -41,7 +47,7 @@ function AppContent() {
         <Route path="/demo-approval"  element={<CockpitPage />} />
         <Route path="/cost"           element={<CostPage />} />
         <Route path="/demo-request/*" element={<DemoRequestPage />} />
-        <Route path="/admin"           element={<AdminConfigPage />} />
+        <Route path="/admin"          element={<AdminConfigPage />} />
       </Routes>
     </AppShell>
   )
@@ -49,9 +55,9 @@ function AppContent() {
 
 export default function App() {
   return (
-    <>
+    <HeaderBadgeProvider>
       <AppContent />
       <Toaster position="bottom-right" richColors />
-    </>
+    </HeaderBadgeProvider>
   )
 }

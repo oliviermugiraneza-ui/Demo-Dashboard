@@ -34,7 +34,7 @@ interface StatCardProps {
 
 function StatCard({ label, value, subLabel, iconBg, icon }: StatCardProps) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex items-start justify-between gap-4">
+    <div className="bg-card rounded-2xl border border-border shadow-sm p-6 flex items-start justify-between gap-4">
       <div className="min-w-0">
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2 truncate">
           {label}
@@ -132,16 +132,16 @@ export default function HomePage() {
   const greeting = getGreeting()
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] p-6 space-y-5">
+    <div className="h-full overflow-auto bg-[#F8FAFC] p-6 space-y-5">
 
       {/* ── Hero row ── */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-[#0F172A] flex items-center gap-2">
+          <h1 className="text-lg font-bold text-gray-900 tracking-tight flex items-center gap-2">
             {greeting}
             <span>👋</span>
           </h1>
-          <p className="text-sm text-[#64748B] mt-0.5">
+          <p className="text-xs text-gray-400 mt-0.5">
             Here's what's happening across Wayve Demo Operations.
           </p>
         </div>
@@ -192,11 +192,11 @@ export default function HomePage() {
       <div className="grid grid-cols-3 gap-4">
 
         {/* Upcoming Demos panel */}
-        <div className="col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <div className="col-span-2 bg-card rounded-2xl border border-border shadow-sm p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Calendar size={17} className="text-[#3B82F6]" />
-              <h2 className="text-base font-semibold text-[#0F172A]">Upcoming Demos</h2>
+              <h2 className="text-base font-semibold text-foreground">UPCOMING DEMOS</h2>
             </div>
             <Link
               to="/calendar"
@@ -208,7 +208,7 @@ export default function HomePage() {
 
           {loading && demos.length === 0 ? (
             <div className="flex items-center justify-center py-10 gap-2 text-sm text-gray-400">
-              <span className="w-4 h-4 border-2 border-gray-200 border-t-[#3B82F6] rounded-full animate-spin" />
+              <span className="w-4 h-4 border-2 border-border border-t-[#3B82F6] rounded-full animate-spin" />
               Loading…
             </div>
           ) : upcomingList.length === 0 ? (
@@ -221,12 +221,12 @@ export default function HomePage() {
                 <div
                   key={d.id}
                   className="flex items-center justify-between px-3 py-2.5 rounded-xl
-                             border border-gray-100 hover:bg-gray-50 transition-colors"
+                             border border-border hover:bg-muted transition-colors"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <GeoBadge geo={d.geo as GeoCode} />
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold text-[#0F172A] truncate">
+                      <p className="text-sm font-semibold text-foreground truncate">
                         {d.organization}
                       </p>
                       <p className="text-xs text-gray-400 truncate">{d.type}</p>
@@ -247,17 +247,17 @@ export default function HomePage() {
         </div>
 
         {/* GEO Breakdown panel */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <div className="bg-card rounded-2xl border border-border shadow-sm p-6">
           <div className="flex items-center gap-2 mb-5">
             <MapPin size={17} className="text-[#3B82F6]" />
-            <h2 className="text-base font-semibold text-[#0F172A]">GEO Breakdown</h2>
+            <h2 className="text-base font-semibold text-foreground">GEO BREAKDOWN</h2>
           </div>
           <div className="space-y-0.5">
             {GEO_ORDER.map((geo, i) => (
               <div
                 key={geo}
                 className={`flex items-center justify-between py-3 ${
-                  i < GEO_ORDER.length - 1 ? 'border-b border-gray-100' : ''
+                  i < GEO_ORDER.length - 1 ? 'border-b border-border' : ''
                 }`}
               >
                 <div className="flex items-center gap-2.5">
@@ -266,7 +266,7 @@ export default function HomePage() {
                     {GEO_LABELS[geo]}
                   </span>
                 </div>
-                <span className="text-sm font-semibold text-[#64748B] tabular-nums">
+                <span className="text-sm font-semibold text-muted-foreground tabular-nums">
                   {geoCounts[geo]}
                 </span>
               </div>
@@ -276,9 +276,9 @@ export default function HomePage() {
       </div>
 
       {/* ── Recent Activity ── */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <h2 className="text-base font-semibold text-[#0F172A]">Recent Activity</h2>
+      <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <h2 className="text-base font-semibold text-foreground">RECENT ACTIVITY</h2>
           <Link to="/tracker" className="text-sm font-medium text-[#3B82F6] hover:underline">
             View all →
           </Link>
@@ -287,11 +287,11 @@ export default function HomePage() {
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-gray-100 bg-gray-50">
+              <tr className="border-b border-border bg-muted">
                 {['Requester', 'Organization', 'Type', 'Geo', 'Date', 'Status'].map(col => (
                   <th
                     key={col}
-                    className="px-6 py-3 text-left text-[11px] font-semibold text-[#94A3B8]
+                    className="px-6 py-3 text-left text-[11px] font-semibold text-muted-foreground/60
                                uppercase tracking-widest whitespace-nowrap"
                   >
                     {col}
@@ -305,7 +305,7 @@ export default function HomePage() {
                   <td colSpan={6} className="px-6 py-10 text-sm text-gray-400 text-center">
                     {loading ? (
                       <span className="inline-flex items-center gap-2">
-                        <span className="w-4 h-4 border-2 border-gray-200 border-t-[#3B82F6] rounded-full animate-spin" />
+                        <span className="w-4 h-4 border-2 border-border border-t-[#3B82F6] rounded-full animate-spin" />
                         Loading…
                       </span>
                     ) : 'No recent activity'}
@@ -315,21 +315,21 @@ export default function HomePage() {
                 recentActivity.map(d => (
                   <tr
                     key={d.id}
-                    className="border-b border-gray-50 last:border-0 hover:bg-[#F8FAFC] transition-colors"
+                    className="border-b border-gray-50 last:border-0 hover:bg-background transition-colors"
                   >
                     <td className="px-6 py-3.5 text-sm text-[#374151]">
                       {d.requester || '—'}
                     </td>
-                    <td className="px-6 py-3.5 text-sm font-medium text-[#0F172A]">
+                    <td className="px-6 py-3.5 text-sm font-medium text-foreground">
                       {d.organization || '—'}
                     </td>
-                    <td className="px-6 py-3.5 text-sm text-[#64748B]">
+                    <td className="px-6 py-3.5 text-sm text-muted-foreground">
                       {d.type || '—'}
                     </td>
                     <td className="px-6 py-3.5">
                       <GeoBadge geo={d.geo as GeoCode} />
                     </td>
-                    <td className="px-6 py-3.5 text-sm text-[#64748B] whitespace-nowrap">
+                    <td className="px-6 py-3.5 text-sm text-muted-foreground whitespace-nowrap">
                       {fmtDemoDate(d.demo_date)}
                     </td>
                     <td className="px-6 py-3.5">

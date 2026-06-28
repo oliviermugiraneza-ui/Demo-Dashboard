@@ -53,14 +53,41 @@ const TODAY_M = _today.getMonth()
 const TODAY_D = _today.getDate()
 const TODAY_STR = `${TODAY_Y}-${String(TODAY_M + 1).padStart(2, '0')}-${String(TODAY_D).padStart(2, '0')}`
 
+type Timeframe = 'ALL' | 'TOMORROW' | 'THIS_WEEK' | 'NEXT_WEEK'
+
+function getTimeframeBounds(tf: Timeframe): { from: string; to: string } | null {
+  if (tf === 'ALL') return null
+  const base = new Date(); base.setHours(0, 0, 0, 0)
+  const fmt = (d: Date) => d.toISOString().slice(0, 10)
+
+  if (tf === 'TOMORROW') {
+    const t = new Date(base); t.setDate(base.getDate() + 1)
+    return { from: fmt(t), to: fmt(t) }
+  }
+  const day = base.getDay()
+  const toMon = day === 0 ? -6 : 1 - day
+  if (tf === 'THIS_WEEK') {
+    const mon = new Date(base); mon.setDate(base.getDate() + toMon)
+    const sun = new Date(mon); sun.setDate(mon.getDate() + 6)
+    return { from: fmt(mon), to: fmt(sun) }
+  }
+  if (tf === 'NEXT_WEEK') {
+    const mon = new Date(base); mon.setDate(base.getDate() + toMon + 7)
+    const sun = new Date(mon); sun.setDate(mon.getDate() + 6)
+    return { from: fmt(mon), to: fmt(sun) }
+  }
+  return null
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function CalendarPage() {
   const [viewYear,   setViewYear]   = useState(TODAY_Y)
   const [viewMonth,  setViewMonth]  = useState(TODAY_M)   // 0-indexed
   const [selectedDay, setSelectedDay] = useState<number | null>(TODAY_D)
-  const [geoFilter,   setGeoFilter]   = useState('ALL')
+  const [geoFilter,    setGeoFilter]    = useState('ALL')
   const [statusFilter, setStatusFilter] = useState('ALL')
+  const [timeframe,    setTimeframe]    = useState<Timeframe>('ALL')
   const [drawerDemo, setDrawerDemo] = useState<DemoRequest | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [readinessOverrides, setReadinessOverrides] = useState<Record<string, string>>({})
@@ -73,17 +100,23 @@ export default function CalendarPage() {
   const viewMonthStr = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}`
 
   // ── Filtered demos for current view ────────────────────────────────────────
-  const filteredDemos = useMemo(() =>
-    demos.filter(d => {
+  const filteredDemos = useMemo(() => {
+    const tfBounds = getTimeframeBounds(timeframe)
+    return demos.filter(d => {
       if (d.status === 'DELETED') return false
-      if (!d.demo_date.startsWith(viewMonthStr)) return false
+      // If timeframe is active, filter by date range (ignores month navigation)
+      if (tfBounds) {
+        if (d.demo_date < tfBounds.from || d.demo_date > tfBounds.to) return false
+      } else {
+        if (!d.demo_date.startsWith(viewMonthStr)) return false
+      }
       if (geoFilter !== 'ALL' && d.geo !== geoFilter) return false
       if (statusFilter === 'Reviewed'    && d.status !== 'Reviewed') return false
       if (statusFilter === 'Needs Review' && d.status !== 'Needs Review' && d.status !== 'NEEDS REVIEW') return false
       if (statusFilter === 'Canceled'    && d.status !== 'Canceled') return false
       return true
-    }),
-  [demos, viewMonthStr, geoFilter, statusFilter])
+    })
+  }, [demos, viewMonthStr, geoFilter, statusFilter, timeframe])
 
   // Map demos by day number in current month
   const demosByDay = useMemo(() => {
@@ -161,78 +194,108 @@ export default function CalendarPage() {
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
-    <div className="p-5 space-y-4" style={{ background: '#F8FAFC', minHeight: '100%' }}>
+    <div className="h-full flex flex-col bg-[#F8FAFC] overflow-hidden">
 
-      {/* Filter row */}
-      <div className="flex items-center gap-2.5 flex-wrap">
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-36 bg-white text-sm h-9">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">All Status</SelectItem>
-            <SelectItem value="Reviewed">Reviewed</SelectItem>
-            <SelectItem value="Needs Review">Needs Review</SelectItem>
-            <SelectItem value="Canceled">Cancelled</SelectItem>
-          </SelectContent>
-        </Select>
+      {/* ── Sticky filter bar ── */}
+      <div className="flex-shrink-0 bg-white border-b border-gray-100 px-5 py-3">
+      <div className="flex items-end gap-2.5 flex-wrap">
 
-        <Select value={String(viewMonth)} onValueChange={v => {
-          setViewMonth(parseInt(v, 10)); setSelectedDay(null)
-        }}>
-          <SelectTrigger className="w-36 bg-white text-sm h-9">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {MONTH_NAMES.map((m, i) => (
-              <SelectItem key={i} value={String(i)}>{m}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        {/* Geo toggles */}
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={() => setGeoFilter('ALL')}
-            className={`px-2.5 py-1 text-xs font-semibold rounded-lg border transition-colors ${
-              geoFilter === 'ALL'
-                ? 'bg-blue-600 text-white border-blue-600'
-                : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
-            }`}
-          >
-            All
-          </button>
-          {(['UK', 'JP', 'US', 'DE', 'ST'] as const).map(geo => (
-            <button
-              key={geo}
-              onClick={() => setGeoFilter(geoFilter === geo ? 'ALL' : geo)}
-              className={`px-2 py-1 text-base rounded-lg border transition-all ${
-                geoFilter === geo
-                  ? 'border-blue-500 ring-2 ring-blue-200 bg-blue-50'
-                  : 'bg-white border-gray-200 hover:border-gray-400'
-              }`}
-              title={geo}
-            >
-              {GEO_FLAGS[geo]}
-            </button>
-          ))}
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">STATUS</span>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-36 bg-card text-sm h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Status</SelectItem>
+              <SelectItem value="Reviewed">Approved</SelectItem>
+              <SelectItem value="Needs Review">Needs Review</SelectItem>
+              <SelectItem value="Canceled">Cancelled</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
-        <Button variant="outline" size="sm" onClick={goToday} className="ml-auto h-9">
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">MONTH</span>
+          <Select value={String(viewMonth)} onValueChange={v => {
+            setViewMonth(parseInt(v, 10)); setSelectedDay(null); setTimeframe('ALL')
+          }}>
+            <SelectTrigger className="w-36 bg-card text-sm h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {MONTH_NAMES.map((m, i) => (
+                <SelectItem key={i} value={String(i)}>{m}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">TIMEFRAME</span>
+          <Select value={timeframe} onValueChange={v => setTimeframe(v as Timeframe)}>
+            <SelectTrigger className="w-36 bg-card text-sm h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Time</SelectItem>
+              <SelectItem value="TOMORROW">Tomorrow</SelectItem>
+              <SelectItem value="THIS_WEEK">This Week</SelectItem>
+              <SelectItem value="NEXT_WEEK">Next Week</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Geo toggles */}
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">GEO</span>
+          <div className="flex items-center gap-1.5 h-9">
+            <button
+              onClick={() => setGeoFilter('ALL')}
+              className={`px-2.5 py-1 text-xs font-semibold rounded-lg border transition-colors ${
+                geoFilter === 'ALL'
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-card text-gray-600 border-border hover:border-gray-400'
+              }`}
+            >
+              All
+            </button>
+            {(['UK', 'JP', 'US', 'DE', 'ST'] as const).map(geo => (
+              <button
+                key={geo}
+                onClick={() => setGeoFilter(geoFilter === geo ? 'ALL' : geo)}
+                className={`px-2 py-1 text-base rounded-lg border transition-all ${
+                  geoFilter === geo
+                    ? 'border-blue-500 ring-2 ring-blue-200 bg-blue-50'
+                    : 'bg-card border-border hover:border-gray-400'
+                }`}
+                title={geo}
+              >
+                {GEO_FLAGS[geo]}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <Button variant="outline" size="sm" onClick={goToday} className="ml-auto h-9 self-end">
           Today
         </Button>
       </div>
+      </div>
+
+      {/* ── Scrollable content ── */}
+      <div className="flex-1 overflow-auto p-5 space-y-4">
 
       {/* Main layout */}
       <div className="flex gap-4" style={{ minHeight: 560 }}>
 
         {/* Calendar grid (70%) */}
         <div
-          className="flex flex-col bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden"
+          className="flex flex-col bg-card rounded-xl border border-border shadow-sm overflow-hidden"
           style={{ flex: '0 0 70%', minWidth: 0 }}
         >
           {/* Month nav header */}
-          <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100">
+          <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
             <button
               onClick={prevMonth}
               className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
@@ -251,7 +314,7 @@ export default function CalendarPage() {
           </div>
 
           {/* Weekday headers */}
-          <div className="grid grid-cols-7 bg-gray-50 border-b border-gray-100">
+          <div className="grid grid-cols-7 bg-muted border-b border-border">
             {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d => (
               <div key={d} className="text-center text-[11px] font-semibold text-gray-400 py-2">
                 {d}
@@ -271,7 +334,7 @@ export default function CalendarPage() {
                     return (
                       <div
                         key={di}
-                        className="min-h-[84px] bg-gray-50/40 border-r border-gray-50 last:border-r-0"
+                        className="min-h-[84px] bg-muted/40 border-r border-gray-50 last:border-r-0"
                       />
                     )
                   }
@@ -304,7 +367,7 @@ export default function CalendarPage() {
                         {demos.slice(0, 3).map((demo, ci) => (
                           <div
                             key={ci}
-                            className="text-[9px] leading-tight px-1 py-0.5 rounded-[3px] bg-gray-50 truncate"
+                            className="text-[9px] leading-tight px-1 py-0.5 rounded-[3px] bg-muted truncate"
                             style={{ borderLeft: `3px solid ${statusChipColor(demo.status)}` }}
                           >
                             <span className="text-gray-600 font-medium">{chipText(demo)}</span>
@@ -322,7 +385,7 @@ export default function CalendarPage() {
           </div>
 
           {/* Legend */}
-          <div className="flex items-center gap-5 px-4 py-2.5 border-t border-gray-100 bg-gray-50/50">
+          <div className="flex items-center gap-5 px-4 py-2.5 border-t border-border bg-muted/50">
             {[
               { label: 'Approved',     color: '#10B981' },
               { label: 'Needs Review', color: '#F59E0B' },
@@ -340,11 +403,11 @@ export default function CalendarPage() {
 
         {/* Agenda pane (30%) */}
         <div
-          className="flex flex-col bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden"
+          className="flex flex-col bg-card rounded-xl border border-border shadow-sm overflow-hidden"
           style={{ flex: '0 0 calc(30% - 16px)', minWidth: 220 }}
         >
           {/* Header */}
-          <div className="px-4 py-3 border-b border-gray-100">
+          <div className="px-4 py-3 border-b border-border">
             <p className="text-sm font-semibold text-gray-800">
               {selectedDay !== null
                 ? `${MONTH_NAMES[viewMonth]} ${selectedDay}`
@@ -367,7 +430,7 @@ export default function CalendarPage() {
                 <div
                   key={demo.id}
                   onClick={() => openDemo(demo)}
-                  className="cursor-pointer p-3 rounded-lg border border-gray-100
+                  className="cursor-pointer p-3 rounded-lg border border-border
                              hover:border-blue-200 hover:bg-blue-50/20 transition-all space-y-1.5"
                 >
                   <div className="flex items-center justify-between gap-1 flex-wrap">
@@ -434,6 +497,7 @@ export default function CalendarPage() {
         readinessOverrides={readinessOverrides}
         onMarkReady={handleMarkReady}
       />
+      </div>
     </div>
   )
 }

@@ -2,15 +2,89 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─── Design tokens ───────────────────────────────────────────────────────── */
+
+@layer base {
+  :root {
+    /* Backgrounds */
+    --background:          210 40% 98%;   /* #F8FAFC  page bg */
+    --foreground:          222 47% 11%;   /* #0F172A  primary text */
+
+    /* Card / surface */
+    --card:                0 0% 100%;     /* #FFFFFF */
+    --card-foreground:     222 47% 11%;   /* #0F172A */
+
+    /* Popover / dropdown */
+    --popover:             0 0% 100%;
+    --popover-foreground:  222 47% 11%;
+
+    /* Brand blue */
+    --primary:             221 83% 53%;   /* #2563EB */
+    --primary-foreground:  0 0% 100%;
+
+    /* Subtle surfaces */
+    --secondary:           210 40% 96%;   /* #F1F5F9 */
+    --secondary-foreground: 222 47% 11%;
+
+    /* Muted text & surfaces */
+    --muted:               210 40% 96%;   /* #F1F5F9 */
+    --muted-foreground:    215 16% 47%;   /* #64748B */
+
+    /* Hover accent (no colour shift) */
+    --accent:              210 40% 96%;   /* #F1F5F9 */
+    --accent-foreground:   222 47% 11%;
+
+    /* Semantic states */
+    --destructive:         0   84% 60%;   /* #EF4444 */
+    --destructive-foreground: 0 0% 100%;
+
+    --warning:             38  92% 50%;   /* #F59E0B */
+    --warning-foreground:  0 0% 100%;
+
+    --success:             142 76% 36%;   /* #16A34A */
+    --success-foreground:  0 0% 100%;
+
+    /* Form chrome */
+    --border:              214 32% 91%;   /* #E2E8F0 */
+    --input:               214 32% 91%;
+    --ring:                221 83% 53%;   /* #2563EB */
+
+    /* Geometry */
+    --radius:              0.75rem;       /* 12px */
+    --spacing-base:        1rem;
+
+    /* Elevation */
+    --shadow-card-sm: 0 1px 3px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.05);
+    --shadow-card-md: 0 4px 6px rgba(0,0,0,.05), 0 8px 24px rgba(0,0,0,.06);
+    --shadow-card-lg: 0 12px 32px rgba(0,0,0,.10), 0 4px 8px rgba(0,0,0,.05);
+
+    /* Typography */
+    --font-sans: 'Inter';
+    --font-mono: 'JetBrains Mono';
+  }
+}
+
+/* ─── Base resets ─────────────────────────────────────────────────────────── */
+
 @layer base {
   * {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
+    border-color: hsl(var(--border));
   }
+
   body {
-    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-family: var(--font-sans), Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
     -webkit-font-smoothing: antialiased;
-    background: #F8FAFC;
+    -moz-osx-font-smoothing: grayscale;
   }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar        { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track  { background: transparent; }
+  ::-webkit-scrollbar-thumb  { background: hsl(var(--border)); border-radius: 99px; }
+  ::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground) / 0.4); }
 }

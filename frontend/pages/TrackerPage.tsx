@@ -1,25 +1,24 @@
 import { useState, useMemo, useEffect } from 'react'
-import { Search } from 'lucide-react'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '../lib/shadcn/select'
-import { Input } from '../lib/shadcn/input'
 import { type DemoRequest, type GeoCode } from './data/sampleData'
 import { useGetDemos } from '../hooks/backend/demos'
 import DemoDetailDrawer from './ui/DemoDetailDrawer'
 import TrackerTables from './ui/TrackerTables'
+import { type DrawerContext } from './ui/cockpitActions'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const MONTHS = [
-  { v: 'ALL', l: 'All Months' }, { v: '01', l: 'January' }, { v: '02', l: 'February' },
-  { v: '03', l: 'March' },       { v: '04', l: 'April' },   { v: '05', l: 'May' },
-  { v: '06', l: 'June' },        { v: '07', l: 'July' },    { v: '08', l: 'August' },
-  { v: '09', l: 'September' },   { v: '10', l: 'October' }, { v: '11', l: 'November' },
-  { v: '12', l: 'December' },
+  { v: 'ALL', l: 'All Months' }, { v: '01', l: 'Jan' }, { v: '02', l: 'Feb' },
+  { v: '03', l: 'Mar' },         { v: '04', l: 'Apr' }, { v: '05', l: 'May' },
+  { v: '06', l: 'Jun' },         { v: '07', l: 'Jul' }, { v: '08', l: 'Aug' },
+  { v: '09', l: 'Sep' },         { v: '10', l: 'Oct' }, { v: '11', l: 'Nov' },
+  { v: '12', l: 'Dec' },
 ]
 
-const GEOS: string[] = ['ALL', 'UK', 'JP', 'US', 'DE', 'ST']
+const GEOS: string[] = ['ALL', 'UK', 'JP', 'US', 'DE']
 
 const TYPES: string[] = [
   'ALL', 'VIP', 'Media', 'External', 'OEM Support',
@@ -29,11 +28,14 @@ const TYPES: string[] = [
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function TrackerPage() {
-  const [month,  setMonth]  = useState('ALL')
-  const [geo,    setGeo]    = useState('ALL')
-  const [type,   setType]   = useState('ALL')
-  const [search, setSearch] = useState('')
+  const [month,     setMonth]     = useState('ALL')
+  const [geo,       setGeo]       = useState('ALL')
+  const [type,      setType]      = useState('ALL')
+  const [dateFrom,  setDateFrom]  = useState('')
+  const [dateTo,    setDateTo]    = useState('')
+
   const [selectedDemo,       setSelectedDemo]       = useState<DemoRequest | null>(null)
+  const [drawerContext,      setDrawerContext]       = useState<DrawerContext>('default')
   const [drawerOpen,         setDrawerOpen]         = useState(false)
   const [readinessOverrides, setReadinessOverrides] = useState<Record<string, string>>({})
   const [demos,              setDemos]              = useState<DemoRequest[]>([])
@@ -52,15 +54,17 @@ export default function TrackerPage() {
       }
       if (geo !== 'ALL' && d.geo !== (geo as GeoCode)) return false
       if (type !== 'ALL' && d.type !== type) return false
-      if (search.trim() && !d.organization.toLowerCase().includes(search.toLowerCase())) return false
+      if (dateFrom && d.demo_date < dateFrom) return false
+      if (dateTo   && d.demo_date > dateTo)   return false
       return true
     }),
-    [demos, month, geo, type, search],
+    [demos, month, geo, type, dateFrom, dateTo],
   )
 
   // ── Handlers ──────────────────────────────────────────────────────────────
-  const openDrawer = (demo: DemoRequest) => {
+  const openDrawer = (demo: DemoRequest, ctx: DrawerContext) => {
     setSelectedDemo(demo)
+    setDrawerContext(ctx)
     setDrawerOpen(true)
   }
 
@@ -71,7 +75,7 @@ export default function TrackerPage() {
     setReadinessOverrides(prev => ({ ...prev, [id]: `${today.getFullYear()}-${m}-${d}` }))
   }
 
-  const filterSelect = 'h-8 text-sm bg-white border-gray-200'
+  const filtersActive = month !== 'ALL' || geo !== 'ALL' || type !== 'ALL' || dateFrom !== '' || dateTo !== ''
 
   if (loading && demos.length === 0) {
     return (
@@ -83,66 +87,99 @@ export default function TrackerPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] p-6 space-y-5">
+    <div className="h-full flex flex-col bg-[#F8FAFC] overflow-hidden">
 
-      {/* ── Filter Bar ── */}
-      <div className="flex flex-wrap items-center gap-3">
-        <Select value={month} onValueChange={setMonth}>
-          <SelectTrigger className={`w-36 ${filterSelect}`}>
-            <SelectValue placeholder="Month" />
-          </SelectTrigger>
-          <SelectContent>
-            {MONTHS.map(m => <SelectItem key={m.v} value={m.v}>{m.l}</SelectItem>)}
-          </SelectContent>
-        </Select>
+      {/* ── Sticky filter bar ── */}
+      <div className="flex-shrink-0 bg-white border-b border-gray-100 px-6 py-3 flex flex-wrap items-end gap-3">
 
-        <Select value={geo} onValueChange={setGeo}>
-          <SelectTrigger className={`w-28 ${filterSelect}`}>
-            <SelectValue placeholder="Geo" />
-          </SelectTrigger>
-          <SelectContent>
-            {GEOS.map(g => <SelectItem key={g} value={g}>{g === 'ALL' ? 'All Geos' : g}</SelectItem>)}
-          </SelectContent>
-        </Select>
-
-        <Select value={type} onValueChange={setType}>
-          <SelectTrigger className={`w-44 ${filterSelect}`}>
-            <SelectValue placeholder="Type" />
-          </SelectTrigger>
-          <SelectContent>
-            {TYPES.map(t => <SelectItem key={t} value={t}>{t === 'ALL' ? 'All Types' : t}</SelectItem>)}
-          </SelectContent>
-        </Select>
-
-        <div className="relative flex-1 min-w-[180px] max-w-xs">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
-          <Input
-            placeholder="Search organization…"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="h-8 text-sm pl-8 bg-white border-gray-200"
-          />
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">MONTH</span>
+          <Select value={month} onValueChange={setMonth}>
+            <SelectTrigger className="w-32 h-8 text-sm bg-card border-border">
+              <SelectValue placeholder="Month" />
+            </SelectTrigger>
+            <SelectContent>
+              {MONTHS.map(m => <SelectItem key={m.v} value={m.v}>{m.l}</SelectItem>)}
+            </SelectContent>
+          </Select>
         </div>
 
-        <span className="text-xs text-gray-400 ml-auto">
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">GEO</span>
+          <Select value={geo} onValueChange={setGeo}>
+            <SelectTrigger className="w-24 h-8 text-sm bg-card border-border">
+              <SelectValue placeholder="Geo" />
+            </SelectTrigger>
+            <SelectContent>
+              {GEOS.map(g => <SelectItem key={g} value={g}>{g === 'ALL' ? 'All Geos' : g}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">TYPE</span>
+          <Select value={type} onValueChange={setType}>
+            <SelectTrigger className="w-40 h-8 text-sm bg-card border-border">
+              <SelectValue placeholder="Type" />
+            </SelectTrigger>
+            <SelectContent>
+              {TYPES.map(t => <SelectItem key={t} value={t}>{t === 'ALL' ? 'All Types' : t}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Date range */}
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">DATE RANGE</span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-gray-400 whitespace-nowrap">From</span>
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={e => setDateFrom(e.target.value)}
+              className="h-8 px-2 text-sm rounded-md border border-gray-200 bg-white focus:outline-none focus:border-blue-400 text-gray-700"
+            />
+            <span className="text-xs text-gray-400 whitespace-nowrap">To</span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={e => setDateTo(e.target.value)}
+              className="h-8 px-2 text-sm rounded-md border border-gray-200 bg-white focus:outline-none focus:border-blue-400 text-gray-700"
+            />
+          </div>
+        </div>
+
+        {filtersActive && (
+          <button
+            onClick={() => { setMonth('ALL'); setGeo('ALL'); setType('ALL'); setDateFrom(''); setDateTo('') }}
+            className="text-xs text-gray-400 hover:text-gray-700 underline underline-offset-2 pb-1"
+          >
+            Clear
+          </button>
+        )}
+
+        <span className="text-xs text-gray-400 ml-auto whitespace-nowrap pb-1">
           {filtered.length} demo{filtered.length !== 1 ? 's' : ''}
         </span>
       </div>
 
-      {/* ── Readiness · Completed · Cancelled tables ── */}
-      <TrackerTables
-        demos={filtered}
-        readinessOverrides={readinessOverrides}
-        onSelectDemo={openDrawer}
-      />
+      {/* ── Tables ── */}
+      <div className="flex-1 overflow-auto p-6 space-y-5">
+        <TrackerTables
+          demos={filtered}
+          readinessOverrides={readinessOverrides}
+          onSelectDemo={openDrawer}
+        />
+      </div>
 
-      {/* ── Detail Drawer ── */}
+      {/* ── Detail Drawer — read-only for completed/cancelled ── */}
       <DemoDetailDrawer
         demo={selectedDemo}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         readinessOverrides={readinessOverrides}
-        onMarkReady={handleMarkReady}
+        context={drawerContext}
+        onMarkReady={drawerContext === 'default' ? handleMarkReady : undefined}
       />
     </div>
   )

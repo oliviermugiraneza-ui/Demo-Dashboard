@@ -1,0 +1,210 @@
+Ref: ,Demo Operation proposal in JP,,,,,,,,,,,,,,,,,,,
+,,Who?,,,,,When?,,,Why?,What? How?,,,,,,,,,
+No,Status,Company?,Customer?,Requestor?,Host?,Window person?,Demo ride date,Time(JST),schedule arrangement with customer,Demo purpose/ Reason,Demo Route?,Car?,Expected Peformance?,Priority?,Next Action?,Ops Impact (hrs),operation ticket link,Demo Plan,Note,
+,"Proposed: Customer Proposal for Demo
+Requested: Requested to Demo Team 
+Arranging: Demo team arranging the date and time 
+Confirmed: Confirmed the Demo plan
+Completed: Demo completed ",,,,,,,,,,,,,,,,,,,
+1,Completed,Toyota,"Masahiro Iwasaki (AV division General manager)
+Aoki / Watanabe ",Wayve,Wayve Japan Office,,"1 AM, July 
+2 , July","12:00-13:00
+13:00-14:00",fixed,ask approval for following Toyota key person demo,SB HQ Course,Mach-E,as-is performance,P1,demo,7,,,,
+2,Completed,Toyota,Koibuchi or other toyota working level members,Wayve,Wayve Japan Office,,21st July,,Start arranging,ask approval for following Toyota key person demo,SB HQ Course,Mach-E,high-performance (Zero intervention & Zero concern),P0,,5.5,,,,
+3,Completed,Toyota,Akihiro Sarada (Software division head),Wayve,Erez/Alex,,end of July?,,"Not started
+(Begin of July)",Production nomination,SB HQ Course,Mach-E,high-performance (Zero intervention & Zero concern),-,wait,5.5,,,,
+5,Completed,Denso ,"近藤 浩  (セーフティ事業部　事業部長)
+篠田 吉正(モビエレ事業グループ　副グループ長)※
+岡田　稔　先進モビリティシステム開発部　部長
+Hiroshi Kondo (General Manager, Safety Division)
+Yoshimasa Shinoda (Deputy General Manager, Mobile Electronics Business Group)*
+Minoru Okada (General Manager, Advanced Mobility Systems Development Dept.",Denso,Wayve Japan Office,,"1 AM, July ",11:00-12:00,fixed,Understanding and support withing the company,SB HQ Course,Mach-E,as-is performance,P1,schedule fix,5.5,,,,
+6,Completed,Denso ,"加藤　良文(ミッションエグゼクティブ)
+岡田　稔　先進モビリティシステム開発部　部長
+        
+Yoshifumi Kato (Mission Executive)
+Minoru Okada (General Manager, Advanced Mobility Systems Development Dept.",Wayve,Wayve Japan Office,,"3 AM, July",11:00-12:00,fixed,ask approval for following Toyota key person demo,SB HQ Course,Mach-E,as-is performance,P1,schedule fix,5.5,,,,
+8,Completed,Denso ,"飯田　寿(モビエレ事業グループ　グループ長)
+稲田　純也(セーフティシス技１部　部長)
+Hisashi Iida (Group General Manager, Mobile Electronics Business Group)
+Junya Inada (General Manager, Safety Systems Engineering Department 1)",Denso,Wayve Japan Office,,9 July,11:00-12:00,fixed,Denso internal support ,SB HQ Course,Mach-E,as-is performance,P1,schedule fix,5.5,,,,
+9,Completed,Nissan ,"Zと製品企画
+Chief engineers and Product Planning department",Nissan,Wayve Japan Office,,19th June 13:00 - 16:00,13:00-16:00,fixed,"7/10の車両企画会議の前に載せたい
+for vehicle planning meeting on 7/10.",Nissan 25mins route,Mach-E,as-is performance,P0,Done,,,,,
+13,Completed,Sony Honda Mobility (SHM),SHM management (ayumu.horiba@sony-honda-mobility.com),SHM,Wayve Japan Office,,Begin of July?,,fixed,Honda's production alignment ,SB HQ Course,Mach-E,as-is performance,P1,schedule arrangement,2,In between other demos ,,,
+sample,Completed,SoftBank,Matsui-san Vision fund team (mayuko.mori@softbank.com),Softbank,Wayve Japan Office,Masa Kameyama,,,,Wayve support,SB HQ Course,Mach-E,as-is performance,P1,Done,,,,,
+15,Completed,SoftBank,Miyagawa-san,Wayve,Wayve Japan Office,,22nd July or 24th July,,?,Honda product nomination support,SB HQ Course,Mach-E,as-is performance,P0,,5.5,,,,
+16,Completed,SoftBank,Big Masa (Masayoshi Son),Wayve,Erez/Alex,,28th of August,,?,Honda product nomination support,SB HQ Course,Mach-E,,P0,,5.5,,,,
+17,Completed,Uber,Ethan Stock (ethan.stock@uber.com),Uber,Wayve Japan Office,,"3 July,",13:00-14:00,fixed,Alex request,SB HQ Course,Mach-E,as-is performance,P0,schedule arrangement,2,In between other demos ,,,
+18,Completed,Honda ,Shikama (Head of BEV),Wayve,Wayve Japan Office,,22nd July,,started,Production nomination,SB HQ Course,Mach-E,as-is performance,P0,,5.5,,,,
+19,Completed,Honda ,Nagashima (Head of AD/ADAS),Wayve,Wayve Japan Office,,TBD,,started,Production nomination,SB HQ Course,Mach-E,as-is performance,P0,,5.5,,,,
+20,Completed,Honda,"Watanabe, Yonemori, Kato, Nakatsuka, Narimatsu (Elige Gen2/3 Chief Engineer)",Wayve,Wayve Japan Office,,TBD,,started,Honda's production alignment ,SB HQ Course,Mach-E,as-is performance,P1,,5.5,,,,
+22,Completed,Woven By Toyota,Okuchi-Yokoi - Kuroda,Wayve,Wayve Japan Office,,9 July,"10:00-11:00
+16:00-17:00",fixed,,SB HQ Course,Mach-E,as-is performance,P2,,4,In between other demos ,,,
+25,Completed,Nissan ,Iijima,Wayve,Wayve Japan Office,,3 July,10:00-11:00,started,,SB HQ Course,Mach-E,as-is performance,P1,,2,In between other demos ,,,
+26,Completed,SoftBank,SB members(3 people),Wayve,Wayve Japan Office,,9 July,15:00-16:00,fixed,Honda product nomination support,SB HQ Course,Mach-E,as-is performance,P1,,2,In between other demos ,,,
+27,Completed,Nissan ,Nissan Executives around 10 people,Nissan,Wayve Japan Office,,July 18,9:00 - 17:00,,Production nomination,Nissan 25mins route,Mach-E,as-is performance,P0,,?,,,,
+28,Completed,Mazda ,"Koichi Kojima, Yasunori Yamomoto Generanal manger",Mazda,"Wayve Japan Office
+(Masa Kameyama/Teru Udate )",Teru Udate,19th March,"0pm-3pm
+(1hr x 2times?)",,"Production nomination (Mazda EV, 2030)","
+maps.app.goo.gl/ZBe7kvXb5D828SwU7",Mach-E,as-is performance,P1,Schedule arrangement,small?,https://wayve-ai.slack.com/archives/C08FWEN4SFP/p1771591805568379?thread_ts=1771591761.404769&cid=C08FWEN4SFP,Demo Details,,
+29,Completed,SHM,"Mizuno CEO, Yamaguchi Director / Deputy President, Mishima san (do not know his role yet), Nagai (window)",SHM,"Wayve Japan Office
+(Masa Kameyama/Teru Udate /Jun Sampei )",Jun Sampei,24th February ,3pm-5pm,,Production nomination (SHM 2027 March),"{[JP]Demo Sony_Honda_Mobility
++ free plot(15min)} x 2times
+",Mach-E,as-is performance,P0,Demo,,,Demo Details,,
+30,Completed,"Government
+(Disital Transformation)","Taira Masaaki
+(Minister for Digital Transformation in 2024)
+
++ Kawanabe-san (Go Taxi)",Go Taxi,"Wayve Japan Office
+(Kentaro Shiota/Teru Udate )",Teru Udate,15th (Sun) March ,11-12AM,,"government relation,
+Robo taxi adoptaiton in Japan  ","Kamata station
+
+5 Chome-13 Kamata, Ota City, Tokyo 144-0052
+https://maps.app.goo.gl/dYgSRyPfzZLVjyGF9",Mach-E,as-is performance,P0,shcedule arrangement,,https://wayve-ai.slack.com/archives/C08FWEN4SFP/p1772536186977259,Demo Details,,
+31,Completed,"Government
+(Disital Transformation)","Vehicle #1 : 
+Taro Kono (Minister for Digital Transformation in 2023)
++ Kawanabe-san (Go Taxi)  + Masa Kameyama
+
+
+Vehicle #2 : 
+Ito-san (DT) + akihiko.kanai@nihon-kotsu.co.jp + Teru Udate
+",Go Taxi,"Wayve Japan Office
+(Masa Kameyama/Teru Udate)",Teru Udate,17 March,10-11AM,,"government relation,
+Robo taxi adoptaiton in Japan  ","New route around the office 
+
+〒102-0094 Tokyo, Chiyoda City, Kioicho, 1−3 
+https://maps.app.goo.gl/TReQsmMrkcL9kogr9",Mach-E x2,as-is performance,P0,shcedule arrangement,,,Demo Details,,
+32,Completed,Hella Japan ,"Lonny Chick, Yusuke Hashimoto, Sawada",Hella Japan,Wayve Japan Office (Teru Udate/Teru Udate/Jun Sampei ),Jun Sampei,4th March,3:30pm-4:30pm,,Showcase Wayve performance + Technical meeting,"
+Otemachi route",Mach-E,as-is performance,P2,None,,,,,
+33,Completed,Aumovio Japan,"Taishi Kusano, Kameya, Junpei Sato",Aumovio Japan,Wayve Japan Office (Teru Udate/Teru Udate/Jun Sampei ),Jun Sampei,4th March,2pm-3pm,,Showcase Wayve performance + Recruitement,"
+Otemachi route",Mach-E,as-is performance,P2,None,,,,,
+34,Proposed ,Nissan Purchasing / Valeo Japan,"Daga (Regional Senior Manager Teppei Daga + 4, Valeo x 5)",Valeo Japan,Wayve Japan Office (Teru Udate/Teru Udate/Jun Sampei ),Jun Sampei,April 2026 (target),TBD,,Nissan purchasing Head Hasegawa san request so that his purchasing team understand the technology.,Otemachi route (TBD),Mach-E,as-is performance,P2,shcedule arrangement,,,,,
+35,Completed,Go Taxi / Nihon Kotsu,Go-taxi /Nihon Kotsu board members,Go Taxi,"Wayve Japan Office
+(Jun Sampei/Teru Udate )",Teru Udate,24th Tuesday March,"13:00-16:00 
+(1h x 3times)",,"To persuade GO and Nihon Kotsu internally toward achieving L4:
+
+We plan to have GO executives—CEO Nakajima, CFO Mori, and CTO Era—ride along the Azabudai → Kioicho route, and Nihon Kotsu executives—Vice Chairman Hayashi, President Wakabayashi, and one additional member—ride along the Kioicho → Azabudai route.
+
+We would also like to secure a half-day slot to conduct demonstrations for relevant stakeholders before and after these rides.
+
+","New route 
+
+Start or End points : Azabudai Hills 
+https://maps.app.goo.gl/Lu5PnXKELbabQSQ79
+
+Start or End point : Kiocho building
+https://maps.app.goo.gl/nxAt6MUTYtA7Mx5G8
+
+And special request from customer. please marge narrow road with this ""Go-Taxi Government demo""
+https://console.sso.wayve.ai/route/7f960986-1182-46f0-8003-92651b5bac37
+",Mach-E x1 (Main),as-is performance,P1,Customer arrangements,,https://wayve-ai.slack.com/archives/C08FWEN4SFP/p1773816546543129?thread_ts=1773816397.697419&cid=C08FWEN4SFP,Demo Plan,,
+36,Completed,candidate / Sarah Gates,Candidate demo,Government , Sarah Gates,Jun Sampei,25th Wednesday March,16:00-17:00,,candidate,Otemachi route,Mach-E x1 (Main),as-is performance,P1,TBD,,https://wayve-ai.slack.com/archives/C08FWEN4SFP/p1774233170924619?thread_ts=1774233134.231479&cid=C08FWEN4SFP,,,
+37,Completed,Hyundai SDV CEO,"Hyundai SDV/ADAS President Minwoo Park 
+3people (CEO, CEO head office, ADAS head)",Hyundai -> BD,"Wayve Japan Office
+(Jun Sampei or Kentaro Shiota)",Jun Sampei,27th Friday   March,     11:30-13:30,,"Hyundai has reached out to Wayve seeking a partnership aimed production. To evaluate performance in Japan, they will travel to Japan and conduct driving tests.","Start/End : Azabudai hotei Janu Tokyo (https://maps.app.goo.gl/RZrDvZ3iPKj8RtUz8)
+",Mach-E x1,"high-performance 
+(Zero intervention & Zero concern)",P0,,,https://wayve-ai.slack.com/archives/C08FWEN4SFP/p1774329893298659,[3-27]Hyundai,,
+38,Completed,Uber x Hinomaaru Kotsu Taxi,"Uber: Reiko Nagatsuma, Duncan Wright, Damla Boro 
+Hinomaru Kotsu Taxi: Mr. Kazutaka Tomita, President & CEO and Mr. Ryuichi Kawasaki, Director + 3peopel(Sudo/Ito/Toyama)",Uber,Eric Li Teru Udate,Teru Udate,10/04/2026,12:00 - 13:45,,"To learn robo taxi operation, we will have WS and demo in Yokohama area",Yokohama area demo,Mach-E x 2 -> 3?,as-is performance,P1,,,https://wayve-ai.slack.com/archives/C08FWEN4SFP/p1774350839734139,Demo Plan,,
+39,Completed,"Candidate: 
+Caleb McGary",Candidate Demo,Kentaro Shiota,Kentaro Shiota,"Natsuno Sato
+(w/ Teru Udate )",30/03/2026,10:00-10:30,,Kentaro to ride with the candidate,Otemachi Route,Mach-E Alpha3 x1,as-is performance,P2,,,,,,
+40,Completed,Woven By Toyota,COO Okuchi ,Wayve,Kentaro Shiota Teru Udate Jun Sampei,Teru Udate,17/04/2026,13:00-14:30,,communication ,"need to make new route
+(Highway - Urban -> free plot)
+
+Start/End from Otemach. 
+please prepare complete new route (similar to Hyundai experience)
+45min - 1hr route",Mach-E x 2,Best performance,P0,,,https://wayve-ai.slack.com/archives/C08FWEN4SFP/p1775633954246879?thread_ts=1775633920.214779&cid=C08FWEN4SFP,Demo Plan,,
+41,Completed,Internal - Wayve US,Vijay Badrinarayanan + wife and 2 kids,Natsuno Sato,Kentaro Shiota/  Olivier MUGIRANEZA,"Natsuno Sato
+(w/ Teru Udate )",13/04/2026,09:30-11:00,,check JP peformance,"WovenByToyota route on 17/4
+(Highway & Urban route)","Ariya Proto 2 
+Mach-E",as-is performance,P2,Second driver?,,https://wayve-ai.slack.com/archives/C08FWEN4SFP/p1774572832756609?thread_ts=1774572793.414289&cid=C08FWEN4SFP,"Same as S36 
+(Demo Route)",,
+42,Completed,MicroSoft,Horisan,Wayve,Masa Kameyama Teru Udate,Teru Udate,"17/04/2026
+-> 15/04/2026",13:00-14:15,,share current status,Otemachi route,Mach-E,as-is performance,P2,,,https://wayve-ai.slack.com/archives/C08FWEN4SFP/p1775199063641359,Demo Plan,,
+43,Completed,Internal - Wayve US,Dani Gutlansky,Natsuno Sato,Aoi Ishikawa,,10/04/2026,09:00-11:00,,To experience rush hour in urban city. More than one hour. Driver to speak English?,"Otemachi route, refer to L36",Mach-E,as-is performance,P2,,,https://wayve-ai.slack.com/archives/C08FWEN4SFP/p1775105770006999?thread_ts=1775105728.171029&cid=C08FWEN4SFP,"Same as S36 
+(Demo Route)",,
+44,Completed,"Candidate: 
+Nobuaki Yasunaga",Candidate Demo,Natsuno Sato,Masa Kameyama,Natsuno Sato,10/04/2026,14:00-15:00,,,Yokohama,Mach-E,as-is performance,P2,,,https://wayve-ai.slack.com/archives/C08FWEN4SFP/p1775031280253729?thread_ts=1775031236.459589&cid=C08FWEN4SFP,,,
+45,Completed,Internal - Wayve UK,J'aime Laurenson Tim Cordingley Fran Sanchez,Natsuno Sato, stefano pini,Natsuno Sato,24/04/2026,10:00-12:00,,Route to show real performance,Otemachi,Mach-E x2,as-is performance,P2,,,https://wayve-ai.slack.com/archives/C08FWEN4SFP/p1775811454766629?thread_ts=1775811407.394849&cid=C08FWEN4SFP,,,
+46,Completed,Internal ,Dan Stefanov,Natsuno Sato,Kentaro Shiota,,10/04/2026,15:00-16:00,,,Yokohama,,as-is performance,P2,,,https://wayve-ai.slack.com/archives/C08FWEN4SFP/p1775452825015299,,,
+47,Completed,Uber ,"Uber Exective Samarth (Business) 
+total :6 people",Uber,Teru Udate Jun Sampei,Teru Udate,15/04/2026,8:00 - 9:00AM,,check Wayve peformance,Yokohama area demo,Mach-E,as-is performance,P1,,,https://wayve-ai.slack.com/archives/C08FWEN4SFP/p1775632020910219?thread_ts=1775631524.379769&cid=C08FWEN4SFP,Demo Plan,,
+48,Completed,Hyundai Motors,Purchasing VP Lee Hyuk-joon and Group Manager Kevin Park,AUMOVIO Korea Customer Center Head (Youngmi Park),Teru Udate,Jun Sampei,23/04/2026,13:00-14:00,,Confirm current performance],Honda route?,Mach-E,as-is performance,P1,,,https://wayve-ai.slack.com/archives/C08FWEN4SFP/p1776060507312589?thread_ts=1776060471.272419&cid=C08FWEN4SFP,,,
+49,Completed,Internal - Wayve US,Vijay Badrinarayanan + wife and 2 kids,Natsuno Sato,"Stefano for Vijay, Oliver for family",Natsuno Sato,14/04/2026,09:00-11:00,,"followup on Apr 13th demo ride for Vijya, friend&family for the family",Same as Apr 13th,Mach-E,as-is performance,P2,,,https://wayve-ai.slack.com/archives/C08FWEN4SFP/p1776039400791709,,,
+50,Completed,AUMOVIO JP,"Haruki Yamazaki (Sales Head for Toyota account), Yu Sasada (Lead acquisition sales manager)",Jun Sampei,Jun Sampei,Jun Sampei,15/04/212026,15:00-16:00,,Possible parnership discussion to penetrate Toyota business.  ,Otemachi,Mach-E,as-is performance,P2,,,https://wayve-ai.slack.com/archives/D0AFB2BFG3G/p1776156745661439,,,
+51,Completed,Candidate,"Michael Hilton 
+(demo request by Kentaro)",Natsuno Sato,Mark Blustein,Natsuno Sato,20/04/2026,14:00-15:00,,Candidate to experiece demo in Yokohama,Yokohama,Mach-E,as-is performance,P2,,,,,,
+52,Completed,Internal - Wayve UK,J'aime Laurenson Tim Cordingley Fran Sanchez,Natsuno Sato,No host,Olivier MUGIRANEZA,23/04/2026,10:00-12:00,,Route to show real performance,Otemachi,Mach-E Please change to Proto 2.1,as-is performance,P2,,,https://wayve-ai.slack.com/archives/C08FWEN4SFP/p1776248712035189,,,
+53,Completed,Hyundai,"
+1. HyokJoon LEE / Vice President / Head of Electronic Parts Purchasing Division
+2. Kevin Park / Sr. Manager / Group Leader of Autonomous Driving Parts Purchasing",Hyundai ,Teru Udate,Teru Udate,23/04/2026,13:00-13:30,,Show JP performance,Otemachi,Mach-E ,as-is performance,P0,,,https://wayve-ai.slack.com/archives/C08FWEN4SFP/p1776060507312589?thread_ts=1776060471.272419&cid=C08FWEN4SFP,,,
+54,Completed,Hinomaru Kotsu ,Chairman (via Duncan Wright / Uber),Uber,Teru Udate,Teru Udate,2026-05-08,13:30-14:30,,Show JP performance,"highway / urban route from Otemachi office.
+30min < 40min route <60min ",Mach-E,as-is performance,P1,,,https://wayve-ai.slack.com/archives/C08FWEN4SFP/p1776923417803689?thread_ts=1776923377.201949&cid=C08FWEN4SFP,Demo Plan,,
+55,Completed,Internal - Wayve UK,Simone Fabris,Natsuno Sato,VSO Request : English speker,Natsuno Sato,15/05/2026,09:00-10:00,,Hotel to HND airport,The Prince Sakura Tower Tokyo to HND ariport terminal 3,Mach-E,as-is performance,P1,,,https://wayve-ai.slack.com/archives/C08FWEN4SFP/p1777005146916539,,,
+56,Completed,Internal - Wayve UK,Simone Fabris,Natsuno Sato,Kentaro ,Natsuno Sato,12/05/2026,13:00-14:00,,Quallcomm Ariya Demo,,Ariya,as-is performance,P1,,,https://wayve-ai.slack.com/archives/C08FWEN4SFP/p1777518690269719,,,
+57,Completed,Internal - Wayve UK,Simone Fabris,Natsuno Sato,Tomomu,Natsuno Sato,14/05/2026,"09:00-10:45
+10:45-11:45",,"Mach-E (Set speed)
+Nissan Ariya New Model Test ->(Feature, Map)",,Ariya,as-is performance,P1,,,https://wayve-ai.slack.com/archives/C08FWEN4SFP/p1777518984738389,,,
+58,Completed,FYI : ,Hiring event,HR,HR ,HR,14/05/2026,18:30-,,Hiring,-,-,-,P1,,,-,,,
+59,Completed,FYI : ,SB event,,,Olamide ,15/05/2026,8:30AM - 9:30PM,,,https://maps.app.goo.gl/1cgHYaFWfUSb9cmt9,Mach-E,,P0,,,,,,
+60,Completed,candidate,Shintaro Ryu,Masa Kameyama,Masa Kameyama,Masa Kameyama,13/05/2026,10:00-11:00,,Hiring,https://console.sso.wayve.ai/route/9998e50c-c578-4510-b780-8ef6b283c97a,Mach-E,as-is performance,P2,,,,,,
+61,Completed,Grab ,"CEO (Anthony Tan), wife Chloe and Grab JP Natsumi",Kaity Fischer,Kaity Fischer,"(Masa Kameyama
+Natsuno Sato)
+Teru Udate",05/06/2026,"06:45:00
+07:55",,"to drive from HND Airport Terminal 3 to The Front Room Deli Restaurant Marunouchi
+",Need to create new route,Mach-E,as-is performance,P0,,,https://wayve-ai.slack.com/archives/C08FWEN4SFP/p1779148817236229?thread_ts=1779148752.707359&cid=C08FWEN4SFP,Demo Plan ,"-Flight no: SK983
+-Arrival from: Copenhagen
+-Grab POC of the day in JP
+Natsumi: 08093422700 ","Model: FORD MUSTANG
+Color: CLEAR GRAY 
+Plate Number: 品川303 な 47-77"
+62,Completed,CARLYLE,JAPAN CEO,Alex?,Masa Kameyama,"(Masa Kameyama
+Natsuno Sato)
+Teru Udate",26/05/2026,14:00,,???,"Hiring event route
+From Shin Maru building (新丸ビル)
+https://console.sso.wayve.ai/route/b902f923-cc6f-475d-80a0-0ab86f395add",Mach-E,as-is performance,P0,,,https://wayve-ai.slack.com/archives/C08FWEN4SFP/p1779146290678899?thread_ts=1779146249.061789&cid=C08FWEN4SFP,Demo Plan ,,
+63,Completed,Toyota,General manager Uechi,Masa Kameyama,Masa Kameyama,Teru Udate,21/05/2026,14:00,,Get toyota insignt ,"Urban-Highway route from Otemachi
+https://console.sso.wayve.ai/route/9998e50c-c578-4510-b780-8ef6b283c97a",Mach-E,as-is performance,P1,,,https://wayve-ai.slack.com/archives/C08FWEN4SFP/p1779148631351979?thread_ts=1779148598.157939&cid=C08FWEN4SFP,Demo Plan ,,
+64,Completed,Softbank,"松井 健太郎（Managing Partner）
+",Masa Kameyama,Masa Kameyama,"Masa Kameyama
+Natsuno Sato",16/06/2026,16:45,,"To see TRC, TRC to dinner venue","SB HQ to TRC, pick up at 16:45. TRC to dinner (Omori area), pick up at 17:45",Mach-E Nvidia,as-is performance,P0,,,https://wayve-ai.slack.com/archives/C08FWEN4SFP/p1780046360489069,Demo Plan ,"Masa will have a meeting in BS at 16:00-16:45 
+Dinner venue: https://maps.app.goo.gl/2KFmEeJ89C7mXdTS6 (Wayve Kentaro will join the dinner, TBD if he's go straight to dinner venue from office)",
+65,Completed,Mazda ,"　Expert Engineer : Toshifumi Ikeda (池田)　
+　→　元本部長でこの領域の相談役となります。
+
+　Principal Engineer : Yohei Iwashita (岩下)
+　→　前回ご紹介させて頂いた、東京でのこの領域を専任者となります。",Mazda,Teru Udate,Teru Udate,09/06/2026,15:00～16:00,,show performance to OEM,　https://maps.app.goo.gl/ZBe7kvXb5D828SwU7,Mach-E,as-is performance,P0,,,https://wayve-ai.slack.com/archives/C08FWEN4SFP/p1780019192461229,Demo Plan ,,
+66,Completed,ZF (Tier1),Working members,ZF,Teru Udate Jun Sampei,Jun Sampei,09/06/2026,"11:00-13:00
+(1h x 2times)",,show performance to Tier1,(same as Mazda route on same day),Mach-E,as-is performance,P2,,,https://wayve-ai.slack.com/archives/C08FWEN4SFP/p1780564720867049?thread_ts=1780564676.949149&cid=C08FWEN4SFP,No need,,
+67,Completed,Woven By Toyota,"Head of ML , Wadim ",Teru Udate,Teru Udate,Teru Udate,11/06/2026,16:30-17:30,,show performance to Toyota related members,"Woven by toyota and similar route of Mazda/ZF demo
+
+-> https://console.sso.wayve.ai/route/1a9dc353-3cab-4873-bc38-7a9f026f9df2",Mach-E - Nvidia,as-is performance,P2,,,https://wayve-ai.slack.com/archives/C08FWEN4SFP/p1780627398003399,Demo Plan ,,
+68,Completed,Bosch,???,Teru Udate,Jun Sampei,Jun Sampei,25/06/2026,15:00-16:00,,Tier 1 collaboration,Urban + Highway + Narrow pedestrian route,Mach-E - Nvidia,as-is performance,P2,,,https://wayve-ai.slack.com/archives/C08FWEN4SFP/p1781083182697329?thread_ts=1781083142.661419&cid=C08FWEN4SFP,,,
+69,Proposed ,QualComm(QC),Matsui-san,Teru Udate,Masa Kameyama,Teru Udate,(Optional date : 15th week from Tue to Fri),(1h),,SoC supplier collaboration ,From Otemachi - to Urban & Highway,Aria - QC ,as-is performance,P1,,,,,,
+70,Arranging ,Subaru ,3 people,Teru Udate,Jun Sampei,Jun Sampei,21/07/2026,13:30-14:30,,OEM,Urban + Highway + Narrow pedestrian route,Mach-E - Nvidia,as-is performance,P1,,,https://wayve-ai.slack.com/archives/C08FWEN4SFP/p1781082965367969?thread_ts=1781082911.469449&cid=C08FWEN4SFP,,,
+71,Confirmed,Aumovio,2 people,Teru Udate,Masa Kameyama,Masa Kameyama,01/07/2026,9:00-10:00,,Tier 1 collaboration,Urban + Highway + Narrow pedestrian route,Mach-E - Nvidia,as-is performance,P2,,,https://wayve-ai.slack.com/archives/C08FWEN4SFP/p1781221665330429?thread_ts=1781221628.365079&cid=C08FWEN4SFP,,,
+72,Completed,Denso -JQ,Ito-san,Teru Udate,Teru Udate,Teru Udate,16/06/2026,15:00-16:00,,Tier 1 collaboration,"From Woven
+Urban + Highway + Narrow pedestrian route",Mach-E - Nvidia,as-is performance,P1,,,https://wayve-ai.slack.com/archives/C08FWEN4SFP/p1781242731576659,,,
+73,Requested ,Internal - Wayve UK,Simone Fabris,Natsuno Sato,VSO Request : English speker,Natsuno Sato,08/07/2026,07:50-08:30,,HND airport to MESM,HND ariport terminal 3 to MESM,Mach-E,as-is performance,P1,,,https://wayve-ai.slack.com/archives/C08FWEN4SFP/p1781485658995019,,,
+74,Requested ,Internal - Wayve UK,Simone Fabris,Natsuno Sato,VSO Request : English speker,Natsuno Sato,11/07/2026,09:15-09:45,,HND airport to MESM,MESM to HND ariport terminal 3,Mach-E,as-is performance,P1,,,https://wayve-ai.slack.com/archives/C08FWEN4SFP/p1781485838212579,,,
+75,Completed,Denso ,Kimura,Teru Udate,Teru Udate,Teru Udate,19/06/2026,15:00-16:00,,Tier 1 collaboration,Urban + Highway + Narrow pedestrian route from Otemachi office,Mach-E - Nvidia,as-is performance,P1,,,https://wayve-ai.slack.com/archives/C08FWEN4SFP/p1781669568146569?thread_ts=1781669529.727589&cid=C08FWEN4SFP,,,
+76,Proposed ,Mitsubishi Jisho,4 ppl,Naoko Sato,Kerry Conneely Teru Udate Jun Sampei,Naoko Sato,22/7/2026,15:00-16:00,,Landloard,Urban + Narrow pedestrian route from Otemachi office,Mach-E - Nvidia,as-is performance,P2,,,,,,
+77,Confirmed,"Ministry of Land, Infrastructure, Transport and Tourism (MLIT)
+Logistics and Road Transport Bureau",6 ppl,Uber,Teru Udate,Teru Udate,2/7/2026,13:00-15:00,,Robo taxi technonology investigation,"urban + Highway (not narrow pedestrian route)
+30min-40min from Otemachi 
+Safest route",Mach-E - Nvidia,"Safest peformance 
+(No need to entertain)",P0,,,https://docs.google.com/spreadsheets/d/1voRMAJw6Xbk4UCUO-yZzIuE_ZJiRcBEpstTzmep4pHw/edit?gid=0#gid=0,,,
+78,Confirmed,Hyundai,3,Hyundai,Jun Sampei,Jun Sampei,1/7/2026,10:00-11:00,,Robotaxi study,,,,,,,,,,
+79,Confirmed,Hyundai/Socar/APEX,6,Socar,Jun Sampei/Teru Udate,Jun Sampei,2/7/2026,09:00-10:00,,Robotaxi study,,,,,,,,,,
+80,Proposed ,,,,,,,,,,,,,,,,,,,
+81,Proposed ,,,,,,,,,,,,,,,,,,,
+82,Proposed ,,,,,,,,,,,,,,,,,,,
+83,Proposed ,,,,,,,,,,,,,,,,,,,
+84,Proposed ,,,,,,,,,,,,,,,,,,,
+85,Proposed ,,,,,,,,,,,,,,,,,,,
+86,Proposed ,,,,,,,,,,,,,,,,,,,
+87,Proposed ,,,,,,,,,,,,,,,,,,,
+88,Proposed ,,,,,,,,,,,,,,,,,,,

@@ -13,6 +13,7 @@ out/
 .env
 .env.local
 .env.*.local
+# keep .env.example committed
 
 # Logs
 logs/
@@ -31,6 +32,10 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+# Claude Code local settings
+.claude/settings.json
+.claude/settings.local.json
 
 # TypeScript
 *.tsbuildinfo

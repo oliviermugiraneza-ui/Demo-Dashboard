@@ -1,4 +1,5 @@
 import { useState, useMemo, type ReactNode } from 'react'
+import { type DrawerContext } from './cockpitActions'
 import {
   useReactTable,
   getCoreRowModel,
@@ -15,7 +16,6 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '../../lib/shadcn/table'
 import { type DemoRequest } from '../data/sampleData'
-import DelayBadge from '../../components/DelayBadge'
 import GeoBadge from '../../components/GeoBadge'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -25,7 +25,7 @@ export type TrackerRow = DemoRequest & { effectiveReadiness: string | null }
 interface TrackerTablesProps {
   demos: DemoRequest[]
   readinessOverrides: Record<string, string>
-  onSelectDemo: (demo: DemoRequest) => void
+  onSelectDemo: (demo: DemoRequest, context: DrawerContext) => void
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -37,10 +37,6 @@ function fmtDate(dateStr: string): string {
   const day = d.getDate().toString().padStart(2, '0')
   const month = (d.getMonth() + 1).toString().padStart(2, '0')
   return `${day}-${month}-${d.getFullYear()}`
-}
-
-function isDelayed(d: DemoRequest): boolean {
-  return d.lead_days < 3 && d.status !== 'Canceled' && d.status !== 'DELETED'
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -62,9 +58,9 @@ function CollapsibleSection({
     <Collapsible
       open={open}
       onOpenChange={setOpen}
-      className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden"
+      className="bg-card rounded-xl border border-border shadow-sm overflow-hidden"
     >
-      <CollapsibleTrigger className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-gray-50 transition-colors">
+      <CollapsibleTrigger className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-muted transition-colors">
         <div className="flex items-center gap-3">
           <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: accentColor }} />
           <span className="text-sm font-semibold text-gray-800">{title}</span>
@@ -77,19 +73,18 @@ function CollapsibleSection({
           : <ChevronRight className="w-4 h-4 text-gray-400" />}
       </CollapsibleTrigger>
       <CollapsibleContent>
-        <div className="border-t border-gray-100">{children}</div>
+        <div className="border-t border-border">{children}</div>
       </CollapsibleContent>
     </Collapsible>
   )
 }
 
 function DataTable<T extends object>({
-  data, columns, onRowClick, highlightDelayed,
+  data, columns, onRowClick,
 }: {
   data: T[]
   columns: ColumnDef<T>[]
   onRowClick?: (row: T) => void
-  highlightDelayed?: (row: T) => boolean
 }) {
   const [sorting, setSorting] = useState<SortingState>([])
   const table = useReactTable({
@@ -110,9 +105,9 @@ function DataTable<T extends object>({
   return (
     <div className="overflow-x-auto">
       <Table>
-        <TableHeader className="sticky top-0 bg-gray-50 z-10">
+        <TableHeader className="sticky top-0 bg-muted z-10">
           {table.getHeaderGroups().map(hg => (
-            <TableRow key={hg.id} className="border-b border-gray-200 hover:bg-transparent">
+            <TableRow key={hg.id} className="border-b border-border hover:bg-transparent">
               {hg.headers.map(header => (
                 <TableHead
                   key={header.id}
@@ -131,28 +126,22 @@ function DataTable<T extends object>({
           ))}
         </TableHeader>
         <TableBody>
-          {table.getRowModel().rows.map(row => {
-            const delayed = highlightDelayed?.(row.original) ?? false
-            return (
-              <TableRow
-                key={row.id}
-                onClick={() => onRowClick?.(row.original)}
-                className={[
-                  'transition-colors cursor-pointer hover:bg-blue-50/40',
-                  delayed ? 'border-l-2 border-l-red-500' : '',
-                ].join(' ')}
-              >
-                {row.getVisibleCells().map(cell => (
-                  <TableCell
-                    key={cell.id}
-                    className="text-sm text-gray-700 py-2.5 whitespace-nowrap"
-                  >
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
-                ))}
-              </TableRow>
-            )
-          })}
+          {table.getRowModel().rows.map(row => (
+            <TableRow
+              key={row.id}
+              onClick={() => onRowClick?.(row.original)}
+              className="transition-colors cursor-pointer hover:bg-blue-50/40"
+            >
+              {row.getVisibleCells().map(cell => (
+                <TableCell
+                  key={cell.id}
+                  className="text-sm text-gray-700 py-2.5 whitespace-nowrap"
+                >
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                </TableCell>
+              ))}
+            </TableRow>
+          ))}
         </TableBody>
       </Table>
     </div>
@@ -172,7 +161,7 @@ function makeReadinessColumns(): ColumnDef<TrackerRow>[] {
       cell: i => <GeoBadge geo={i.getValue<string>()} /> },
     { id: 'host', accessorFn: r => r.host, header: 'Host' },
     { id: 'lead_days', accessorFn: r => r.lead_days, header: 'Lead Days',
-      cell: i => <DelayBadge days={i.getValue<number>()} /> },
+      cell: i => <span className="tabular-nums text-xs">{i.getValue<number>()}d</span> },
     { id: 'requester', accessorFn: r => r.requester, header: 'Requester' },
     { id: 'effectiveReadiness', accessorFn: r => r.effectiveReadiness, header: 'Date of Readiness',
       cell: i => {
@@ -196,8 +185,6 @@ function makeCompletedColumns(): ColumnDef<TrackerRow>[] {
     { id: 'geo', accessorFn: r => r.geo, header: 'Geo',
       cell: i => <GeoBadge geo={i.getValue<string>()} /> },
     { id: 'host', accessorFn: r => r.host, header: 'Host' },
-    { id: 'lead_days', accessorFn: r => r.lead_days, header: 'Lead Days',
-      cell: i => <DelayBadge days={i.getValue<number>()} /> },
     { id: 'requester', accessorFn: r => r.requester, header: 'Requester' },
     { id: 'effectiveReadiness', accessorFn: r => r.effectiveReadiness, header: 'Date of Readiness',
       cell: i => {
@@ -234,15 +221,17 @@ export default function TrackerTables({
     effectiveReadiness: readinessOverrides[d.id] ?? d.readiness_date,
   })
 
-  const upcomingRows = useMemo<TrackerRow[]>(
+  // APPROVED DEMOS = Reviewed, future (>= today)
+  const approvedRows = useMemo<TrackerRow[]>(
     () => demos
-      .filter(d => d.status !== 'Canceled' && d.status !== 'DELETED' && d.demo_date >= TODAY)
+      .filter(d => d.status === 'Reviewed' && d.demo_date >= TODAY)
       .sort((a, b) => a.demo_date.localeCompare(b.demo_date))
       .map(toRow),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [demos, readinessOverrides],
   )
 
+  // COMPLETED DEMOS = Reviewed, past (< today)
   const completedRows = useMemo<TrackerRow[]>(
     () => demos
       .filter(d => d.status === 'Reviewed' && d.demo_date < TODAY)
@@ -261,31 +250,28 @@ export default function TrackerTables({
     [demos, readinessOverrides],
   )
 
-  const readinessCols = useMemo(makeReadinessColumns, [])
-  const completedCols = useMemo(makeCompletedColumns, [])
-  const cancelledCols = useMemo(makeCancelledColumns, [])
-
-  const handleClick = (row: TrackerRow) => onSelectDemo(row)
+  const readinessCols  = useMemo(makeReadinessColumns, [])
+  const completedCols  = useMemo(makeCompletedColumns, [])
+  const cancelledCols  = useMemo(makeCancelledColumns, [])
 
   return (
     <div className="space-y-4">
-      {/* Section 2: Readiness */}
+      {/* APPROVED DEMOS — Reviewed & upcoming */}
       <CollapsibleSection
-        title="Readiness — Upcoming Demos"
-        count={upcomingRows.length}
+        title="APPROVED DEMOS"
+        count={approvedRows.length}
         accentColor="#0052FF"
       >
         <DataTable<TrackerRow>
-          data={upcomingRows}
+          data={approvedRows}
           columns={readinessCols}
-          onRowClick={handleClick}
-          highlightDelayed={r => isDelayed(r)}
+          onRowClick={row => onSelectDemo(row, 'default')}
         />
       </CollapsibleSection>
 
-      {/* Section 3: Completed */}
+      {/* COMPLETED DEMOS — Reviewed & past */}
       <CollapsibleSection
-        title="Completed Demos"
+        title="COMPLETED DEMOS"
         count={completedRows.length}
         accentColor="#10B981"
         defaultOpen={false}
@@ -293,14 +279,13 @@ export default function TrackerTables({
         <DataTable<TrackerRow>
           data={completedRows}
           columns={completedCols}
-          onRowClick={handleClick}
-          highlightDelayed={r => isDelayed(r)}
+          onRowClick={row => onSelectDemo(row, 'completed')}
         />
       </CollapsibleSection>
 
-      {/* Section 4: Cancelled */}
+      {/* CANCELLED DEMOS */}
       <CollapsibleSection
-        title="Cancelled Demos"
+        title="CANCELLED DEMOS"
         count={cancelledRows.length}
         accentColor="#EF4444"
         defaultOpen={false}
@@ -308,7 +293,7 @@ export default function TrackerTables({
         <DataTable<TrackerRow>
           data={cancelledRows}
           columns={cancelledCols}
-          onRowClick={handleClick}
+          onRowClick={row => onSelectDemo(row, 'completed')}
         />
       </CollapsibleSection>
     </div>

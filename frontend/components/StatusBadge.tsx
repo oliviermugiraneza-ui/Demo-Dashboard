@@ -3,7 +3,7 @@ import type { DemoStatus } from '../pages/data/sampleData'
 type StatusCfg = { bg: string; text: string; dot: string; label: string }
 
 const STATUS_CONFIG: Record<string, StatusCfg> = {
-  'Reviewed':     { bg:'#DCFCE7', text:'#15803D', dot:'#22C55E', label:'Reviewed' },
+  'Reviewed':     { bg:'#DCFCE7', text:'#15803D', dot:'#22C55E', label:'Approved' },
   'Needs Review': { bg:'#FEF3C7', text:'#92400E', dot:'#F59E0B', label:'Needs Review' },
   'NEEDS REVIEW': { bg:'#FEF3C7', text:'#92400E', dot:'#F59E0B', label:'Needs Review' },
   'Canceled':     { bg:'#FEE2E2', text:'#B91C1C', dot:'#EF4444', label:'Canceled' },

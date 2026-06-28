@@ -72,7 +72,7 @@ function BreakdownRow({ label, value, symbol, accent = false }: {
 }) {
   if (value <= 0 && !accent) return null
   return (
-    <div className={`flex items-center justify-between py-2 ${accent ? 'border-t-2 border-gray-200 mt-1 pt-3' : 'border-b border-gray-50'}`}>
+    <div className={`flex items-center justify-between py-2 ${accent ? 'border-t-2 border-border mt-1 pt-3' : 'border-b border-gray-50'}`}>
       <span className={`text-sm ${accent ? 'font-bold text-gray-900' : 'text-gray-600'}`}>{label}</span>
       <span className={`tabular-nums font-semibold ${accent ? 'text-base text-gray-900' : 'text-sm text-gray-800'}`}>
         {fmt(symbol, value)}
@@ -152,11 +152,11 @@ export default function CostPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="h-full overflow-auto p-6 space-y-6 bg-[#F8FAFC]">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
 
         {/* ── Left: Form Card ── */}
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
 
           {/* Hero box */}
           <div className="relative px-6 py-6" style={{
@@ -206,7 +206,7 @@ export default function CostPage() {
             </div>
 
             {/* Backup vehicle */}
-            <div className="rounded-lg bg-gray-50 border border-gray-100 p-3 space-y-3">
+            <div className="rounded-lg bg-muted border border-border p-3 space-y-3">
               <label className="flex items-center gap-2 cursor-pointer">
                 <Checkbox
                   checked={hasBackup}
@@ -237,7 +237,7 @@ export default function CostPage() {
 
         {/* ── Right: Preview Card ── */}
         <div className="space-y-5">
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+          <div className="bg-card rounded-xl border border-border shadow-sm p-5">
             <div className="flex items-center gap-2 mb-4">
               <Calculator className="w-4 h-4 text-blue-600" />
               <h3 className="text-sm font-bold text-gray-900">Cost Breakdown</h3>
@@ -252,7 +252,7 @@ export default function CostPage() {
             </div>
 
             {/* Rate card */}
-            <div className="mt-4 pt-4 border-t border-gray-100">
+            <div className="mt-4 pt-4 border-t border-border">
               <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">
                 Applied Rates ({CURRENCY[geo].code})
               </p>
@@ -283,8 +283,8 @@ export default function CostPage() {
           </div>
 
           {/* ── Saved Estimates ── */}
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100">
+          <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-border">
               <div className="flex items-center gap-2">
                 <DollarSign className="w-4 h-4 text-gray-400" />
                 <h3 className="text-sm font-bold text-gray-900">Recent Estimates</h3>
@@ -301,7 +301,7 @@ export default function CostPage() {
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-gray-50">
+                    <TableRow className="bg-muted">
                       <TableHead className="text-xs font-semibold text-gray-500 py-2.5">Name</TableHead>
                       <TableHead className="text-xs font-semibold text-gray-500 py-2.5">Geo</TableHead>
                       <TableHead className="text-xs font-semibold text-gray-500 py-2.5">Total</TableHead>
@@ -310,7 +310,7 @@ export default function CostPage() {
                   </TableHeader>
                   <TableBody>
                     {estimates.map(est => (
-                      <TableRow key={est.id} className="hover:bg-gray-50 transition-colors">
+                      <TableRow key={est.id} className="hover:bg-muted transition-colors">
                         <TableCell className="py-2.5">
                           <p className="text-sm font-medium text-gray-900">{est.name}</p>
                           <p className="text-[10px] text-gray-400">{est.ts}</p>

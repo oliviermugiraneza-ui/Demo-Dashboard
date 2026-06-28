@@ -1,8 +1,5 @@
-import { useState, useMemo, type ReactNode } from 'react'
-import { Link } from 'react-router-dom'
-import {
-  AlertTriangle, Activity,
-} from 'lucide-react'
+import { useState, useMemo, useEffect, type ReactNode } from 'react'
+import { Activity } from 'lucide-react'
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip,
@@ -11,17 +8,15 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '../lib/shadcn/select'
-import {
-  demoRequests, operationFeedback, postDemoSessions,
-  type GeoCode,
-} from './data/sampleData'
+import { type DemoRequest, type GeoCode } from './data/sampleData'
+import { useGetDemos, useGetSatisfaction, type SatisfactionRow } from '../hooks/backend/demos'
 import {
   aggregateDemosByMonth, aggregateByGeo,
   aggregateByType, aggregateGeoTrend,
 } from './data/chartHelpers'
 import StatCard from '../components/StatCard'
 import SatisfactionGauge from './ui/SatisfactionGauge'
-import FeedbackTable from './ui/FeedbackTable'
+import FeedbackTable, { type FeedbackRow } from './ui/FeedbackTable'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -63,9 +58,9 @@ function ChartCard({
   title, badge, children,
 }: { title: string; badge?: ReactNode; children: ReactNode }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+    <div className="bg-card rounded-xl border border-border shadow-sm p-5">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold text-[#0F172A]">{title}</h3>
+        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
         {badge}
       </div>
       {children}
@@ -81,8 +76,8 @@ function DonutLegend({ items }: { items: { label: string; count: number; color: 
       {items.map(it => (
         <div key={it.label} className="flex items-center gap-2">
           <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: it.color }} />
-          <span className="text-xs text-[#64748B] flex-1">{it.label}</span>
-          <span className="text-xs font-bold text-[#0F172A] tabular-nums">{it.count}</span>
+          <span className="text-xs text-muted-foreground flex-1">{it.label}</span>
+          <span className="text-xs font-bold text-foreground tabular-nums">{it.count}</span>
         </div>
       ))}
     </div>
@@ -104,11 +99,11 @@ function GeoGlance({ geoData }: { geoData: { geo: GeoCode; count: number; pct: n
           className="rounded-lg p-2.5 border"
           style={{ background: GEO_BG[g.geo], borderColor: `${GEO_COLORS[g.geo]}33` }}
         >
-          <p className="text-[10px] font-medium text-[#64748B] mb-0.5 truncate">{GEO_LABEL[g.geo]}</p>
+          <p className="text-[10px] font-medium text-muted-foreground mb-0.5 truncate">{GEO_LABEL[g.geo]}</p>
           <p className="text-xl font-bold tabular-nums leading-tight" style={{ color: GEO_COLORS[g.geo] }}>
             {g.count}
           </p>
-          <p className="text-[9px] text-[#64748B] mb-1">{g.pct}% of total</p>
+          <p className="text-[9px] text-muted-foreground mb-1">{g.pct}% of total</p>
           <div className="h-1 rounded-full bg-white/60 overflow-hidden">
             <div
               className="h-full rounded-full transition-all duration-500"
@@ -124,64 +119,108 @@ function GeoGlance({ geoData }: { geoData: { geo: GeoCode; count: number; pct: n
   )
 }
 
+// ─── Map satisfaction API row → FeedbackRow ───────────────────────────────────
+
+function satToFeedbackRow(row: SatisfactionRow): FeedbackRow {
+  const geo = String(row.geo ?? '')
+  const operator = [
+    row.demo_operator_jp, row.demo_operator_de,
+    row.demo_operator_uk, row.demo_operator_us,
+  ].find(op => op != null) ?? 'Unknown'
+  const issues = String(row.technical_operational_issues ?? '')
+  const hasIssue = issues && issues !== 'No issues encountered'
+  return {
+    id:                 String(row.id ?? ''),
+    date:               String(row.date_of_demo ?? ''),
+    geo,
+    operator:           String(operator),
+    satisfaction_score: parseInt(String(row.overall_satisfaction ?? '0'), 10) || 0,
+    reported_issues:    hasIssue ? [issues] : [],
+    comments:           String(row.comments_suggestions ?? ''),
+    feedback_host:      String(row.email_address ?? ''),
+  }
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function KPIPage() {
   const [selectedMonth, setSelectedMonth] = useState<string>('ALL')
   const [selectedGeo,   setSelectedGeo]   = useState<string>('ALL')
   const [selectedType,  setSelectedType]  = useState<string>('ALL')
+  const [dateFrom,      setDateFrom]      = useState<string>('')
+  const [dateTo,        setDateTo]        = useState<string>('')
+  const [demos,         setDemos]         = useState<DemoRequest[]>([])
+  const [satRows,       setSatRows]       = useState<SatisfactionRow[]>([])
+
+  const { data: dbDemos, loading, trigger: fetchDemos } = useGetDemos()
+  const { data: satData, trigger: fetchSat } = useGetSatisfaction({ limit: 1000 })
+
+  useEffect(() => { void fetchDemos() }, [])
+  useEffect(() => { void fetchSat() }, [])
+  useEffect(() => { if (dbDemos) setDemos(dbDemos as DemoRequest[]) }, [dbDemos])
+  useEffect(() => { if (satData) setSatRows(satData.data) }, [satData])
 
   // Dynamic type options from data
   const typeOptions = useMemo<string[]>(() => {
-    const types = Array.from(new Set(demoRequests.map(d => d.type)))
-    return ['ALL', ...types]
-  }, [])
+    const types = Array.from(new Set(demos.map(d => d.type).filter(Boolean)))
+    return ['ALL', ...types.sort()]
+  }, [demos])
 
   // ── Filtered datasets ────────────────────────────────────────────────────
 
   const filteredDemos = useMemo(() => {
-    return demoRequests.filter(d => {
+    return demos.filter(d => {
       if (d.status === 'DELETED') return false
-      const m = String(new Date(d.demo_date).getMonth() + 1).padStart(2, '0')
-      return (selectedMonth === 'ALL' || m === selectedMonth)
-          && (selectedGeo   === 'ALL' || d.geo  === selectedGeo)
-          && (selectedType  === 'ALL' || d.type === selectedType)
+      const m = String(new Date(d.demo_date + 'T00:00:00').getMonth() + 1).padStart(2, '0')
+      if (selectedMonth !== 'ALL' && m !== selectedMonth) return false
+      if (selectedGeo   !== 'ALL' && d.geo  !== selectedGeo) return false
+      if (selectedType  !== 'ALL' && d.type !== selectedType) return false
+      if (dateFrom && d.demo_date < dateFrom) return false
+      if (dateTo   && d.demo_date > dateTo)   return false
+      return true
     })
-  }, [selectedMonth, selectedGeo, selectedType])
+  }, [demos, selectedMonth, selectedGeo, selectedType, dateFrom, dateTo])
 
-  const filteredFeedback = useMemo(() => {
-    return operationFeedback.filter(f => {
-      const m = String(new Date(f.date).getMonth() + 1).padStart(2, '0')
-      return (selectedMonth === 'ALL' || m === selectedMonth)
-          && (selectedGeo   === 'ALL' || f.geo === selectedGeo)
+  // Satisfaction rows filtered by month + geo
+  const filteredSat = useMemo(() => {
+    return satRows.filter(row => {
+      const dateStr = String(row.date_of_demo ?? '')
+      // date_of_demo is stored as "DD/MM/YYYY" in satisfaction table
+      const parts = dateStr.split('/')
+      const m = parts.length === 3 ? (parts[1] ?? '').padStart(2, '0') : ''
+      const geoMatch = selectedGeo === 'ALL' || String(row.geo ?? '') === selectedGeo
+      const monthMatch = selectedMonth === 'ALL' || m === selectedMonth
+      return geoMatch && monthMatch
     })
-  }, [selectedMonth, selectedGeo])
+  }, [satRows, selectedMonth, selectedGeo])
+
+  const feedbackRows: FeedbackRow[] = useMemo(
+    () => filteredSat.map(satToFeedbackRow),
+    [filteredSat],
+  )
 
   // ── KPI computations ─────────────────────────────────────────────────────
 
   const today = new Date().toISOString().split('T')[0] ?? ''
-  const totalDemos     = filteredDemos.length
-  const totalSessions  = useMemo(() =>
-    postDemoSessions.filter(s => {
-      const dt = new Date(s.demo_datetime)
-      const m  = String(dt.getMonth() + 1).padStart(2, '0')
-      return (selectedMonth === 'ALL' || m === selectedMonth)
-          && (selectedGeo   === 'ALL' || s.geo === selectedGeo)
-    }).length,
-  [selectedMonth, selectedGeo])
-  const totalGuests    = filteredDemos.reduce((s, d) => s + d.total_guests, 0)
+  const totalDemos       = filteredDemos.length
+  const totalSessions    = satRows.length
+  const totalGuests      = filteredDemos.reduce((s, d) => s + d.total_guests, 0)
   const approvedUpcoming = filteredDemos.filter(
     d => d.status === 'Reviewed' && d.demo_date >= today,
   ).length
-  const cancelledCount = filteredDemos.filter(d => d.status === 'Canceled').length
-  const completionRate = totalDemos > 0
+  const cancelledCount   = filteredDemos.filter(d => d.status === 'Canceled').length
+  const completionRate   = totalDemos > 0
     ? Math.round((filteredDemos.filter(d => d.status === 'Reviewed').length / totalDemos) * 100)
     : 0
-  const avgSatisfaction = filteredFeedback.length > 0
-    ? Math.round(
-        (filteredFeedback.reduce((s, f) => s + f.satisfaction_score, 0) / filteredFeedback.length) * 10,
-      ) / 10
-    : 0
+
+  const avgSatisfaction = useMemo(() => {
+    const scores = filteredSat
+      .map(r => parseInt(String(r.overall_satisfaction ?? '0'), 10))
+      .filter(n => n > 0)
+    return scores.length > 0
+      ? Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 10) / 10
+      : 0
+  }, [filteredSat])
 
   // ── Chart data ────────────────────────────────────────────────────────────
 
@@ -196,7 +235,7 @@ export default function KPIPage() {
       const ds = filteredDemos.filter(d => d.geo === geo)
       return {
         geo,
-        Reviewed:      ds.filter(d => d.status === 'Reviewed').length,
+        Approved:      ds.filter(d => d.status === 'Reviewed').length,
         'Needs Review': ds.filter(d => d.status === 'Needs Review' || d.status === 'NEEDS REVIEW').length,
         Cancelled:     ds.filter(d => d.status === 'Canceled').length,
       }
@@ -229,15 +268,6 @@ export default function KPIPage() {
     )
   }, [filteredDemos])
 
-  // ── Delay banner ──────────────────────────────────────────────────────────
-
-  const flaggedDemos = useMemo(
-    () => filteredDemos.filter(
-      d => d.lead_days < 3 && d.status !== 'Canceled' && d.status !== 'DELETED',
-    ),
-    [filteredDemos],
-  )
-
   // ── Donut legend helpers ──────────────────────────────────────────────────
 
   const geoLegend = geoData.map(g => ({
@@ -250,117 +280,108 @@ export default function KPIPage() {
 
   // ── Render ────────────────────────────────────────────────────────────────
 
+  if (loading && demos.length === 0) {
+    return (
+      <div className="flex items-center justify-center min-h-[40vh] gap-2 text-sm text-gray-400">
+        <span className="w-4 h-4 border-2 border-border border-t-blue-500 rounded-full animate-spin" />
+        Loading KPI data…
+      </div>
+    )
+  }
+
   return (
-    <div className="p-6 space-y-6 bg-[#F8FAFC] min-h-screen">
+    <div className="h-full flex flex-col bg-[#F8FAFC] overflow-hidden">
 
-      {/* ── Delay banner ────────────────────────────────────────────────────── */}
-      {flaggedDemos.length > 0 && (
-        <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-amber-300 bg-amber-50">
-          <AlertTriangle size={18} className="text-amber-600 flex-shrink-0" />
-          <p className="text-sm font-medium text-amber-800 flex-1">
-            <strong>{flaggedDemos.length} demo{flaggedDemos.length !== 1 ? 's' : ''}</strong>{' '}
-            flagged with &lt; 3 days lead time — review readiness urgently.
-          </p>
-          <Link
-            to="/tracker"
-            className="text-xs font-semibold text-amber-700 underline underline-offset-2 hover:text-amber-900 whitespace-nowrap"
-          >
-            View in Tracker →
-          </Link>
+      {/* ── Sticky filter bar ── */}
+      <div className="flex-shrink-0 bg-white border-b border-gray-100 px-6 py-3">
+      <div className="flex flex-wrap items-end gap-3">
+
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">MONTH</span>
+          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+            <SelectTrigger className="h-8 w-36 text-xs bg-card border-border">
+              <SelectValue placeholder="Month" />
+            </SelectTrigger>
+            <SelectContent>
+              {MONTHS.map(m => (
+                <SelectItem key={m.v} value={m.v} className="text-xs">{m.l}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-      )}
 
-      {/* ── Filter row ──────────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center gap-3">
-        <span className="text-xs font-semibold text-[#64748B] uppercase tracking-wider">Filter:</span>
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">GEO</span>
+          <Select value={selectedGeo} onValueChange={setSelectedGeo}>
+            <SelectTrigger className="h-8 w-28 text-xs bg-card border-border">
+              <SelectValue placeholder="Geo" />
+            </SelectTrigger>
+            <SelectContent>
+              {GEOS.map(g => (
+                <SelectItem key={g} value={g} className="text-xs">{g === 'ALL' ? 'All Geos' : g}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
-        <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-          <SelectTrigger className="h-8 w-36 text-xs bg-white border-gray-200">
-            <SelectValue placeholder="Month" />
-          </SelectTrigger>
-          <SelectContent>
-            {MONTHS.map(m => (
-              <SelectItem key={m.v} value={m.v} className="text-xs">{m.l}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">TYPE</span>
+          <Select value={selectedType} onValueChange={setSelectedType}>
+            <SelectTrigger className="h-8 w-44 text-xs bg-card border-border">
+              <SelectValue placeholder="Type" />
+            </SelectTrigger>
+            <SelectContent>
+              {typeOptions.map(t => (
+                <SelectItem key={t} value={t} className="text-xs">{t === 'ALL' ? 'All Types' : t}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
-        <Select value={selectedGeo} onValueChange={setSelectedGeo}>
-          <SelectTrigger className="h-8 w-28 text-xs bg-white border-gray-200">
-            <SelectValue placeholder="Geo" />
-          </SelectTrigger>
-          <SelectContent>
-            {GEOS.map(g => (
-              <SelectItem key={g} value={g} className="text-xs">{g === 'ALL' ? 'All Geos' : g}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {/* Date range */}
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">DATE RANGE</span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-muted-foreground whitespace-nowrap">From</span>
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={e => setDateFrom(e.target.value)}
+              className="h-8 px-2 text-xs rounded-md border border-border bg-card focus:outline-none focus:border-blue-400 text-foreground"
+            />
+            <span className="text-xs text-muted-foreground whitespace-nowrap">To</span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={e => setDateTo(e.target.value)}
+              className="h-8 px-2 text-xs rounded-md border border-border bg-card focus:outline-none focus:border-blue-400 text-foreground"
+            />
+          </div>
+        </div>
 
-        <Select value={selectedType} onValueChange={setSelectedType}>
-          <SelectTrigger className="h-8 w-44 text-xs bg-white border-gray-200">
-            <SelectValue placeholder="Type" />
-          </SelectTrigger>
-          <SelectContent>
-            {typeOptions.map(t => (
-              <SelectItem key={t} value={t} className="text-xs">{t === 'ALL' ? 'All Types' : t}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        {(selectedMonth !== 'ALL' || selectedGeo !== 'ALL' || selectedType !== 'ALL') && (
+        {(selectedMonth !== 'ALL' || selectedGeo !== 'ALL' || selectedType !== 'ALL' || dateFrom !== '' || dateTo !== '') && (
           <button
-            onClick={() => { setSelectedMonth('ALL'); setSelectedGeo('ALL'); setSelectedType('ALL') }}
-            className="text-xs text-[#64748B] hover:text-[#0F172A] underline underline-offset-2"
+            onClick={() => { setSelectedMonth('ALL'); setSelectedGeo('ALL'); setSelectedType('ALL'); setDateFrom(''); setDateTo('') }}
+            className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 self-end pb-1"
           >
-            Clear filters
+            Clear
           </button>
         )}
       </div>
+      </div>
+
+      {/* ── Scrollable content ── */}
+      <div className="flex-1 overflow-auto p-6 space-y-6">
 
       {/* ── Section 1: KPI Cards ─────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-7 gap-4">
-        <StatCard
-          label="Total Demos"
-          value={totalDemos}
-          subLabel="All statuses"
-          accent="#2563EB"
-        />
-        <StatCard
-          label="Total Sessions"
-          value={totalSessions}
-          subLabel="Completed sessions"
-          accent="#0EA5E9"
-        />
-        <StatCard
-          label="Total Guests"
-          value={totalGuests}
-          subLabel="Across all demos"
-          accent="#7C3AED"
-        />
-        <StatCard
-          label="Approved Upcoming"
-          value={approvedUpcoming}
-          subLabel="Reviewed & future"
-          accent="#10B981"
-        />
-        <StatCard
-          label="Cancelled"
-          value={cancelledCount}
-          subLabel="Cancelled demos"
-          accent="#EF4444"
-        />
-        <StatCard
-          label="Completion Rate"
-          value={`${completionRate}%`}
-          subLabel="Reviewed / total"
-          accent="#0EA5E9"
-        />
-        <StatCard
-          label="Avg Satisfaction"
-          value={avgSatisfaction > 0 ? avgSatisfaction.toFixed(1) : '—'}
-          subLabel={avgSatisfaction > 0 ? '★'.repeat(Math.round(avgSatisfaction)) : 'No data'}
-          accent="#F59E0B"
-        />
+        <StatCard label="TOTAL DEMOS"       value={totalDemos}                                        accent="#2563EB" />
+        <StatCard label="TOTAL SESSIONS"    value={totalSessions}                                     accent="#0EA5E9" />
+        <StatCard label="TOTAL GUESTS"      value={totalGuests}                                       accent="#7C3AED" />
+        <StatCard label="APPROVED UPCOMING" value={approvedUpcoming}                                  accent="#10B981" />
+        <StatCard label="CANCELLED"         value={cancelledCount}                                    accent="#EF4444" />
+        <StatCard label="COMPLETION RATE"   value={`${completionRate}%`}                              accent="#0EA5E9" />
+        <StatCard label="AVG SATISFACTION"  value={avgSatisfaction > 0 ? avgSatisfaction.toFixed(1) : '—'} accent="#F59E0B" />
       </div>
 
       {/* ── Section 2: 3-col grid ────────────────────────────────────────────── */}
@@ -368,7 +389,7 @@ export default function KPIPage() {
 
         {/* Monthly Demo Trend */}
         <ChartCard
-          title="Monthly Demo Trend"
+          title="MONTHLY DEMO TREND"
           badge={
             <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-[#EFF6FF] text-[#2563EB]">
               {totalDemos} demos
@@ -403,7 +424,7 @@ export default function KPIPage() {
         </ChartCard>
 
         {/* Geo Distribution donut */}
-        <ChartCard title="Geo Distribution">
+        <ChartCard title="GEO DISTRIBUTION">
           <div className="flex items-center justify-center gap-4">
             <PieChart width={150} height={150}>
               <Pie
@@ -428,7 +449,7 @@ export default function KPIPage() {
         </ChartCard>
 
         {/* Demo Type Mix donut */}
-        <ChartCard title="Demo Type Mix">
+        <ChartCard title="DEMO TYPE MIX">
           <div className="flex items-center justify-center gap-4">
             <PieChart width={150} height={150}>
               <Pie
@@ -457,7 +478,7 @@ export default function KPIPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
         {/* Pipeline Status */}
-        <ChartCard title="Pipeline Status">
+        <ChartCard title="PIPELINE STATUS">
           <ResponsiveContainer width="100%" height={180}>
             <BarChart
               layout="vertical"
@@ -469,14 +490,14 @@ export default function KPIPage() {
               <YAxis type="category" dataKey="geo" tick={{ fontSize: 11, fill: '#94A3B8' }} width={28} />
               <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #E2E8F0' }} />
               <Legend iconSize={10} wrapperStyle={{ fontSize: 11 }} />
-              <Bar dataKey="Reviewed"      stackId="a" fill="#10B981" radius={[0, 0, 0, 0]} />
+              <Bar dataKey="Approved"      stackId="a" fill="#10B981" radius={[0, 0, 0, 0]} />
               <Bar dataKey="Needs Review"  stackId="a" fill="#F59E0B" />
               <Bar dataKey="Cancelled"     stackId="a" fill="#EF4444" radius={[0, 3, 3, 0]} />
             </BarChart>
           </ResponsiveContainer>
-          <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-2">
-            <Activity size={13} className="text-[#64748B]" />
-            <span className="text-xs text-[#64748B]">Completion rate:</span>
+          <div className="mt-3 pt-3 border-t border-border flex items-center gap-2">
+            <Activity size={13} className="text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">Completion rate:</span>
             <span
               className="text-xs font-bold px-2 py-0.5 rounded"
               style={{
@@ -490,7 +511,7 @@ export default function KPIPage() {
         </ChartCard>
 
         {/* Geo Trend multi-line area */}
-        <ChartCard title="Geo Trend (by Month)">
+        <ChartCard title="GEO TREND (BY MONTH)">
           <ResponsiveContainer width="100%" height={200}>
             <AreaChart data={geoTrend} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
               <defs>
@@ -526,19 +547,19 @@ export default function KPIPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {/* Geo At A Glance */}
-        <ChartCard title="Geo At A Glance">
+        <ChartCard title="GEO AT A GLANCE">
           <GeoGlance geoData={geoData} />
         </ChartCard>
 
         {/* Satisfaction Gauge */}
-        <ChartCard title="Demo Ops Satisfaction">
+        <ChartCard title="DEMO OPS SATISFACTION">
           <div className="flex flex-col items-center justify-center pt-2">
-            <SatisfactionGauge score={avgSatisfaction} feedbackCount={filteredFeedback.length} />
+            <SatisfactionGauge score={avgSatisfaction} feedbackCount={feedbackRows.length} />
           </div>
         </ChartCard>
 
         {/* Readiness Status */}
-        <ChartCard title="Readiness Status">
+        <ChartCard title="READINESS STATUS">
           <ResponsiveContainer width="100%" height={180}>
             <BarChart data={readinessData} margin={{ top: 0, right: 4, bottom: 0, left: -20 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
@@ -552,9 +573,9 @@ export default function KPIPage() {
               <Bar dataKey="CRITICAL"  stackId="r" fill={READINESS_COLORS['CRITICAL']} radius={[3, 3, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
-          <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-2">
-            <Activity size={13} className="text-[#64748B]" />
-            <span className="text-xs text-[#64748B]">Readiness rate:</span>
+          <div className="mt-3 pt-3 border-t border-border flex items-center gap-2">
+            <Activity size={13} className="text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">Readiness rate:</span>
             <span
               className="text-xs font-bold px-2 py-0.5 rounded"
               style={{
@@ -569,16 +590,17 @@ export default function KPIPage() {
       </div>
 
       {/* ── Section 5: Feedback Table ────────────────────────────────────────── */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+      <div className="bg-card rounded-xl border border-border shadow-sm p-5">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-semibold text-[#0F172A]">Demo Feedback Details</h3>
-          <span className="text-xs text-[#64748B]">
-            {filteredFeedback.length} record{filteredFeedback.length !== 1 ? 's' : ''}
+          <h3 className="text-sm font-semibold text-foreground">DEMO FEEDBACK DETAILS</h3>
+          <span className="text-xs text-muted-foreground">
+            {feedbackRows.length} record{feedbackRows.length !== 1 ? 's' : ''}
           </span>
         </div>
-        <FeedbackTable data={filteredFeedback} />
+        <FeedbackTable data={feedbackRows} />
       </div>
 
+      </div>
     </div>
   )
 }

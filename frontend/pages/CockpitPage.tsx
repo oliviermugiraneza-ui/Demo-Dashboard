@@ -4,7 +4,7 @@ import {
   flexRender, type ColumnDef,
 } from '@tanstack/react-table'
 import {
-  AlertTriangle, ChevronLeft, ChevronRight, Hash,
+  ChevronLeft, ChevronRight, Hash,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '../lib/shadcn/button'
@@ -16,11 +16,16 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '../lib/shadcn/table'
 import { type DemoRequest, type DemoStatus, type GeoCode } from './data/sampleData'
-import { useGetDemos, useUpdateDemo } from '../hooks/backend/demos'
+import {
+  useGetDemos, useUpdateDemo, usePatchDemoStatus, type UpdateDemoParams,
+} from '../hooks/backend/demos'
 import GeoBadge from '../components/GeoBadge'
 import StatusBadge from '../components/StatusBadge'
 import DemoDetailDrawer from './ui/DemoDetailDrawer'
 import { CancelDialog, RescheduleDialog, EditDialog } from './ui/CockpitDialogs'
+import {
+  type ColKey, getActionConfig, statusToColKey, COL_STATUS,
+} from './ui/cockpitActions'
 
 // ─── Types & constants ────────────────────────────────────────────────────────
 
@@ -48,19 +53,20 @@ const TIME_OPTIONS: { v: TimeFilter; l: string }[] = [
 const STATUS_OPTIONS: { v: StatusFilter; l: string }[] = [
   { v: 'All',          l: 'All Status' },
   { v: 'Needs Review', l: 'Needs Review' },
-  { v: 'Reviewed',     l: 'Reviewed' },
+  { v: 'Reviewed',     l: 'Approved' },
   { v: 'Canceled',     l: 'Canceled' },
 ]
 
-const KANBAN_COLS = [
-  { key: 'needs',     label: 'Needs Review', headerBg: '#FFFBEB', headerText: '#92400E', accent: '#F59E0B' },
-  { key: 'reviewed',  label: 'Reviewed',     headerBg: '#ECFDF5', headerText: '#065F46', accent: '#10B981' },
-  { key: 'cancelled', label: 'Cancelled',    headerBg: '#FEF2F2', headerText: '#991B1B', accent: '#EF4444' },
+const KANBAN_COLS: {
+  key: ColKey; label: string
+  headerBg: string; headerText: string; accent: string; cardBg: string
+}[] = [
+  { key: 'needs',     label: 'NEEDS REVIEW', headerBg: '#FFFBEB', headerText: '#92400E', accent: '#F59E0B', cardBg: '#FFFDE7' },
+  { key: 'reviewed',  label: 'APPROVED',     headerBg: '#ECFDF5', headerText: '#065F46', accent: '#10B981', cardBg: '#F0FDF4' },
+  { key: 'cancelled', label: 'CANCELLED',    headerBg: '#FEF2F2', headerText: '#991B1B', accent: '#EF4444', cardBg: '#FFF5F5' },
 ] as const
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const TODAY_DATE = new Date(); TODAY_DATE.setHours(0, 0, 0, 0)
 
 function fmtDate(s: string) {
   const d = new Date(s + 'T00:00:00')
@@ -74,10 +80,6 @@ function fmtDateShort(s: string) {
 
 function isNR(d: DemoRequest) {
   return d.status === 'Needs Review' || d.status === 'NEEDS REVIEW'
-}
-
-function isDelayed(d: DemoRequest) {
-  return d.lead_days < 3 && d.status !== 'Canceled' && d.status !== 'DELETED'
 }
 
 function applyTimeFilter(demos: DemoRequest[], tf: TimeFilter): DemoRequest[] {
@@ -116,24 +118,47 @@ function applyStatusFilter(demos: DemoRequest[], sf: StatusFilter): DemoRequest[
 // ─── Kanban Card ──────────────────────────────────────────────────────────────
 
 function KanbanCard({
-  demo,
-  readinessOverrides,
-  onClick,
+  demo, colKey, cardBg, accent, readinessOverrides,
+  onClick, onApprove, onCancel, onReschedule, onEdit, onMarkReady,
 }: {
-  demo: DemoRequest
+  demo:               DemoRequest
+  colKey:             ColKey
+  cardBg:             string
+  accent:             string
   readinessOverrides: Record<string, string>
-  onClick: () => void
+  onClick:            () => void
+  onApprove:          (id: string) => void
+  onCancel:           (id: string) => void
+  onReschedule:       (id: string) => void
+  onEdit:             (id: string) => void
+  onMarkReady:        (id: string) => void
 }) {
-  const delayed = isDelayed(demo)
   const effectiveReadiness = readinessOverrides[demo.id] ?? demo.readiness_date
   const hasReadiness = effectiveReadiness !== null
+  const cfg = getActionConfig(colKey, hasReadiness)
+
+  const stopProp = (fn: () => void) => (e: React.MouseEvent) => {
+    e.stopPropagation()
+    fn()
+  }
 
   return (
     <div
       id={`cockpit-card-${demo.id}`}
+      draggable
+      onDragStart={e => {
+        e.dataTransfer.setData('text/plain', demo.id)
+        e.dataTransfer.effectAllowed = 'move'
+      }}
       onClick={onClick}
-      className="bg-white rounded-lg border border-gray-100 shadow-sm cursor-pointer
-                 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 p-3 space-y-1.5"
+      className="rounded-lg shadow-sm cursor-grab active:cursor-grabbing hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 p-3 space-y-1.5"
+      style={{
+        backgroundColor: '#ffffff',
+        borderTop:    `1px solid ${accent}33`,
+        borderBottom: `1px solid ${accent}33`,
+        borderLeft:   `3px solid ${accent}`,
+        borderRight:  `3px solid ${accent}`,
+      }}
     >
       {/* Top row */}
       <div className="flex items-start justify-between gap-2">
@@ -142,15 +167,6 @@ function KanbanCard({
         </span>
         <GeoBadge geo={demo.geo as GeoCode} />
       </div>
-
-      {/* Delayed chip */}
-      {delayed && (
-        <div>
-          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-bold bg-red-100 text-red-700 border border-red-200">
-            <AlertTriangle className="w-2.5 h-2.5" /> DELAYED
-          </span>
-        </div>
-      )}
 
       {/* Date + Ready + Type */}
       <div className="flex items-center justify-between gap-2">
@@ -165,6 +181,14 @@ function KanbanCard({
         <span className="text-xs text-gray-400 truncate max-w-[90px] text-right">{demo.type}</span>
       </div>
 
+      {/* Cancellation reason — only on cancelled cards */}
+      {colKey === 'cancelled' && (
+        <p className="text-[11px] text-gray-500 leading-snug">
+          <span className="font-semibold text-gray-600">Reason:</span>{' '}
+          {demo.cancel_reason || 'Not specified'}
+        </p>
+      )}
+
       {/* Slack link */}
       {demo.slack_link && (
         <a
@@ -178,6 +202,50 @@ function KanbanCard({
           Open in Slack
         </a>
       )}
+
+      {/* Action buttons — driven by shared config */}
+      <div className="flex flex-wrap gap-1 pt-1" onClick={e => e.stopPropagation()}>
+        {cfg.showReschedule && (
+          <button
+            className="h-6 px-2 text-[10px] font-medium rounded border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 transition-colors"
+            onClick={stopProp(() => onReschedule(demo.id))}
+          >
+            Reschedule
+          </button>
+        )}
+        {cfg.showApprove && (
+          <button
+            className="h-6 px-2 text-[10px] font-medium rounded border border-green-200 bg-green-50 hover:bg-green-100 text-green-700 transition-colors"
+            onClick={stopProp(() => onApprove(demo.id))}
+          >
+            Approve
+          </button>
+        )}
+        {cfg.showCancel && (
+          <button
+            className="h-6 px-2 text-[10px] font-medium rounded border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 transition-colors"
+            onClick={stopProp(() => onCancel(demo.id))}
+          >
+            Cancel
+          </button>
+        )}
+        {cfg.showEdit && (
+          <button
+            className="h-6 px-2 text-[10px] font-medium rounded border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 transition-colors"
+            onClick={stopProp(() => onEdit(demo.id))}
+          >
+            Edit
+          </button>
+        )}
+        {cfg.showMarkReady && (
+          <button
+            className="h-6 px-2 text-[10px] font-medium rounded border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 transition-colors"
+            onClick={stopProp(() => onMarkReady(demo.id))}
+          >
+            Mark Ready
+          </button>
+        )}
+      </div>
     </div>
   )
 }
@@ -185,18 +253,41 @@ function KanbanCard({
 // ─── Kanban Column ────────────────────────────────────────────────────────────
 
 function KanbanColumn({
-  label, demos, headerBg, headerText, accent, readinessOverrides, onCardClick,
+  label, colKey, demos, headerBg, headerText, accent, cardBg,
+  readinessOverrides, onCardClick, onDropCard,
+  onApprove, onCancel, onReschedule, onEdit, onMarkReady,
 }: {
-  label: string
-  demos: DemoRequest[]
-  headerBg: string
-  headerText: string
-  accent: string
+  label:              string
+  colKey:             ColKey
+  demos:              DemoRequest[]
+  headerBg:           string
+  headerText:         string
+  accent:             string
+  cardBg:             string
   readinessOverrides: Record<string, string>
-  onCardClick: (d: DemoRequest) => void
+  onCardClick:        (d: DemoRequest) => void
+  onDropCard:         (id: string, targetCol: ColKey) => void
+  onApprove:          (id: string) => void
+  onCancel:           (id: string) => void
+  onReschedule:       (id: string) => void
+  onEdit:             (id: string) => void
+  onMarkReady:        (id: string) => void
 }) {
+  const [isDragOver, setIsDragOver] = useState(false)
+
   return (
-    <div className="flex flex-col flex-1 min-w-0 rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+    <div
+      className="flex flex-col flex-1 min-w-0 rounded-xl border border-border overflow-hidden shadow-sm transition-all"
+      onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setIsDragOver(true) }}
+      onDragLeave={() => setIsDragOver(false)}
+      onDrop={e => {
+        e.preventDefault()
+        setIsDragOver(false)
+        const id = e.dataTransfer.getData('text/plain')
+        if (id) onDropCard(id, colKey)
+      }}
+      style={isDragOver ? { outline: `2px dashed ${accent}`, outlineOffset: '-2px' } : undefined}
+    >
       <div
         className="flex items-center justify-between px-4 py-2.5"
         style={{ backgroundColor: headerBg, borderBottom: `2px solid ${accent}` }}
@@ -209,16 +300,29 @@ function KanbanColumn({
           {demos.length}
         </span>
       </div>
-      <div className="flex-1 overflow-y-auto bg-gray-50 p-2.5 space-y-2" style={{ maxHeight: 420 }}>
+      <div
+        className="flex-1 overflow-y-auto bg-muted p-2.5 space-y-2"
+        style={{ maxHeight: 480 }}
+      >
         {demos.length === 0 ? (
-          <p className="text-xs text-gray-400 text-center pt-6">No demos</p>
+          <p className="text-xs text-gray-400 text-center pt-6">
+            {isDragOver ? 'Drop here' : 'No demos'}
+          </p>
         ) : (
           demos.map(demo => (
             <KanbanCard
               key={demo.id}
               demo={demo}
+              colKey={colKey}
+              cardBg={cardBg}
+              accent={accent}
               readinessOverrides={readinessOverrides}
               onClick={() => onCardClick(demo)}
+              onApprove={onApprove}
+              onCancel={onCancel}
+              onReschedule={onReschedule}
+              onEdit={onEdit}
+              onMarkReady={onMarkReady}
             />
           ))
         )}
@@ -230,25 +334,16 @@ function KanbanColumn({
 // ─── Table View ───────────────────────────────────────────────────────────────
 
 function TableView({ data, onApprove, onCancel, onReschedule, onEdit }: {
-  data: DemoRequest[]
-  onApprove: (id: string) => void
-  onCancel: (id: string) => void
+  data:         DemoRequest[]
+  onApprove:    (id: string) => void
+  onCancel:     (id: string) => void
   onReschedule: (id: string) => void
-  onEdit: (id: string) => void
+  onEdit:       (id: string) => void
 }) {
   const columns = useMemo<ColumnDef<DemoRequest>[]>(() => [
     {
       id: 'status', header: 'Status', size: 130,
-      cell: ({ row: { original: d } }) => (
-        <div className="flex flex-col gap-1">
-          <StatusBadge status={d.status} />
-          {isDelayed(d) && (
-            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700 border border-red-200 w-fit">
-              <AlertTriangle className="w-2.5 h-2.5" /> DELAYED
-            </span>
-          )}
-        </div>
-      ),
+      cell: ({ row: { original: d } }) => <StatusBadge status={d.status} />,
     },
     {
       id: 'schedule', header: 'Schedule', size: 130,
@@ -316,12 +411,12 @@ function TableView({ data, onApprove, onCancel, onReschedule, onEdit }: {
   const to = Math.min((pageIndex + 1) * pageSize, data.length)
 
   return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+    <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
       <div className="overflow-x-auto">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map(hg => (
-              <TableRow key={hg.id} className="bg-gray-50">
+              <TableRow key={hg.id} className="bg-muted">
                 {hg.headers.map(h => (
                   <TableHead key={h.id}
                     className="text-xs font-semibold text-gray-500 uppercase tracking-wide py-3"
@@ -334,9 +429,7 @@ function TableView({ data, onApprove, onCancel, onReschedule, onEdit }: {
           </TableHeader>
           <TableBody>
             {table.getRowModel().rows.map(row => (
-              <TableRow key={row.id}
-                style={{ borderLeft: isDelayed(row.original) ? '4px solid #FBBF24' : '4px solid transparent' }}
-                className="hover:bg-gray-50 transition-colors">
+              <TableRow key={row.id} className="hover:bg-muted transition-colors">
                 {row.getVisibleCells().map(cell => (
                   <TableCell key={cell.id} className="py-2.5 align-middle">
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -356,7 +449,7 @@ function TableView({ data, onApprove, onCancel, onReschedule, onEdit }: {
       </div>
 
       {/* Pagination */}
-      <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
+      <div className="flex items-center justify-between px-4 py-3 border-t border-border">
         <span className="text-xs text-gray-400">
           {data.length > 0 ? `${from}–${to} of ${data.length}` : '0 results'}
         </span>
@@ -381,9 +474,10 @@ function TableView({ data, onApprove, onCancel, onReschedule, onEdit }: {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function CockpitPage() {
-  const [demos, setDemos] = useState<DemoRequest[]>([])
+  const [demos, setDemos]   = useState<DemoRequest[]>([])
   const { data: dbDemos, loading: demosLoading, trigger: fetchDemos } = useGetDemos()
-  const { trigger: persistUpdate } = useUpdateDemo()
+  const { trigger: persistUpdate }  = useUpdateDemo()
+  const { trigger: patchStatus }    = usePatchDemoStatus()
 
   useEffect(() => { void fetchDemos() }, [])
   useEffect(() => {
@@ -400,7 +494,17 @@ export default function CockpitPage() {
   const [editDlg,      setEditDlg]      = useState({ open: false, id: '' })
   const [drawerDemo,   setDrawerDemo]   = useState<DemoRequest | null>(null)
 
-  const actionRequiredCount = demos.filter(isNR).length
+  const getDbId = (id: string): number | null =>
+    demos.find(d => d.id === id)?.db_id ?? null
+
+  const persist = useCallback((id: string, data: Record<string, unknown>) => {
+    const db_id = getDbId(id)
+    if (db_id === null) {
+      console.warn('[CockpitPage] no db_id for', id, '— skipping DB write')
+      return
+    }
+    void persistUpdate({ db_id, data } as UpdateDemoParams)
+  }, [demos, persistUpdate])
 
   // ── Filtered set ──────────────────────────────────────────────────────────
   const filteredDemos = useMemo(() => {
@@ -422,47 +526,97 @@ export default function CockpitPage() {
 
   // ── Action handlers ───────────────────────────────────────────────────────
   const handleApprove = useCallback((id: string) => {
-    setDemos(prev => prev.map(d => isNR(d) && d.id === id
-      ? { ...d, status: 'Reviewed' as DemoStatus } : d))
+    const demo = demos.find(d => d.id === id)
+    if (!demo || demo.status === 'Reviewed') return
+    setDemos(prev => prev.map(d => d.id === id ? { ...d, status: 'Reviewed' as DemoStatus } : d))
+    if (drawerDemo?.id === id) setDrawerDemo(prev => prev ? { ...prev, status: 'Reviewed' } : null)
     toast.success('Demo approved')
-    void persistUpdate({ id, action: 'Reviewed', dbStatus: 'approved' })
-  }, [persistUpdate])
+    persist(id, { status: 'Reviewed' })
+  }, [demos, drawerDemo, persist])
 
   const handleConfirmCancel = useCallback((reason: string) => {
-    setDemos(prev => prev.map(d => d.id === cancelDlg.id
+    const id = cancelDlg.id
+    setDemos(prev => prev.map(d => d.id === id
       ? { ...d, status: 'Canceled' as DemoStatus, cancel_reason: reason } : d))
+    if (drawerDemo?.id === id) setDrawerDemo(prev => prev
+      ? { ...prev, status: 'Canceled', cancel_reason: reason } : null)
     toast.success('Demo canceled')
-    void persistUpdate({ id: cancelDlg.id, action: 'Canceled', dbStatus: 'rejected' })
-  }, [cancelDlg.id, persistUpdate])
+    persist(id, { status: 'Canceled', cancelation_reason: reason })
+  }, [cancelDlg.id, drawerDemo, persist])
 
   const handleConfirmReschedule = useCallback((date: string, start: string, end: string) => {
-    setDemos(prev => prev.map(d => d.id === rescheduleDlg.id
+    const id = rescheduleDlg.id
+    setDemos(prev => prev.map(d => d.id === id
       ? { ...d, demo_date: date, start_time: start, end_time: end } : d))
+    if (drawerDemo?.id === id) setDrawerDemo(prev => prev
+      ? { ...prev, demo_date: date, start_time: start, end_time: end } : null)
     toast.success('Demo rescheduled')
-    void persistUpdate({ id: rescheduleDlg.id, date_of_demo: date, start_time: start, end_time: end })
-  }, [rescheduleDlg.id, persistUpdate])
+    persist(id, {
+      date_of_demo:    date,
+      demo_start_time: date + ' ' + start + ':00',
+      demo_end_time:   date + ' ' + end   + ':00',
+    })
+  }, [rescheduleDlg.id, drawerDemo, persist])
 
   const handleConfirmEdit = useCallback((updated: Partial<DemoRequest>) => {
-    setDemos(prev => prev.map(d => d.id === editDlg.id ? { ...d, ...updated } : d))
+    const id = editDlg.id
+    setDemos(prev => prev.map(d => d.id === id ? { ...d, ...updated } : d))
+    if (drawerDemo?.id === id) setDrawerDemo(prev => prev ? { ...prev, ...updated } : null)
     toast.success('Demo updated')
-    void persistUpdate({
-      id: editDlg.id,
-      ...(updated.organization  !== undefined && { organization:  updated.organization }),
-      ...(updated.requester     !== undefined && { requester:     updated.requester }),
-      ...(updated.host          !== undefined && { host:          updated.host }),
-      ...(updated.type          !== undefined && { demo_type:     updated.type }),
-      ...(updated.total_guests  !== undefined && { total_guests:  updated.total_guests }),
-      ...(updated.total_vehicles !== undefined && { total_vehicles: updated.total_vehicles }),
-      ...(updated.vehicle_type  !== undefined && { vehicle_type:  updated.vehicle_type }),
-      ...(updated.description   !== undefined && { description:   updated.description }),
-    })
-  }, [editDlg.id, persistUpdate])
+    const dbData: Record<string, unknown> = {}
+    if (updated.organization   !== undefined) dbData.guests_organization = updated.organization
+    if (updated.requester      !== undefined) dbData.requester           = updated.requester
+    if (updated.host           !== undefined) dbData.host                = updated.host
+    if (updated.type           !== undefined) dbData.type                = updated.type
+    if (updated.total_guests   !== undefined) dbData.total_guests        = updated.total_guests
+    if (updated.total_vehicles !== undefined) dbData.total_vehicles      = updated.total_vehicles
+    if (updated.vehicle_type   !== undefined) dbData.vehicle_type        = updated.vehicle_type
+    if (updated.description    !== undefined) dbData.description         = updated.description
+    persist(id, dbData)
+  }, [editDlg.id, drawerDemo, persist])
 
   const handleMarkReady = useCallback((id: string) => {
     const today = new Date().toISOString().slice(0, 10)
     setReadinessOverrides(prev => ({ ...prev, [id]: today }))
+    if (drawerDemo?.id === id) setDrawerDemo(prev => prev ? { ...prev, readiness_date: today } : null)
     toast.success('Demo marked as ready')
-  }, [])
+    persist(id, { date_of_readiness: today })
+  }, [drawerDemo, persist])
+
+  // ── Drag-and-drop status change ───────────────────────────────────────────
+  const handleDropCard = useCallback(async (id: string, targetCol: ColKey) => {
+    const demo = demos.find(d => d.id === id)
+    if (!demo) return
+    const newStatus = COL_STATUS[targetCol]
+    if (demo.status === newStatus) return // dropped on same column
+
+    // Snapshot for rollback
+    const prev = demos
+
+    // Optimistic UI update
+    setDemos(prev => prev.map(d =>
+      d.id === id ? { ...d, status: newStatus as DemoStatus } : d,
+    ))
+    if (drawerDemo?.id === id) {
+      setDrawerDemo(d => d ? { ...d, status: newStatus as DemoStatus } : null)
+    }
+
+    // Persist via PATCH
+    const db_id = demo.db_id
+    if (db_id !== null && db_id !== undefined) {
+      try {
+        await patchStatus(db_id, newStatus)
+        toast.success(`Moved to ${newStatus}`)
+      } catch {
+        setDemos(prev)                    // rollback
+        if (drawerDemo?.id === id) setDrawerDemo(demo)
+        toast.error('Failed to update status — change reverted')
+      }
+    } else {
+      console.warn('[CockpitPage] no db_id for', id, '— skipping PATCH')
+      toast.success(`Moved to ${newStatus}`)
+    }
+  }, [demos, drawerDemo, patchStatus])
 
   const rescheduleDemo = demos.find(d => d.id === rescheduleDlg.id) ?? null
   const editDemo       = demos.find(d => d.id === editDlg.id) ?? null
@@ -479,62 +633,62 @@ export default function CockpitPage() {
   }
 
   return (
-    <div className="p-6 space-y-5">
+    <div className="h-full flex flex-col bg-[#F8FAFC] overflow-hidden">
 
-      {/* ── Action Required badge ── */}
-      <div className="flex items-center gap-2 px-3 py-1.5 bg-red-50 rounded-lg border border-red-200 w-fit">
-        <span className="relative flex">
-          <span className="w-2 h-2 rounded-full bg-red-500 block" />
-          <span className="w-2 h-2 rounded-full bg-red-500 absolute inset-0 animate-ping opacity-60" />
-        </span>
-        <span className="text-sm font-semibold text-red-700">Action Required</span>
-        <span className="bg-red-500 text-white text-[11px] font-bold px-2 py-0.5 rounded-full leading-none">
-          {actionRequiredCount}
-        </span>
-      </div>
+      {/* ── Sticky filter bar ── */}
+      <div className="flex-shrink-0 bg-white border-b border-gray-100 px-6 py-3">
+      <div className="flex flex-wrap items-end gap-3">
 
-      {/* ── Filter bar ── */}
-      <div className="flex flex-wrap items-center gap-3">
-        <Select value={geoFilter} onValueChange={setGeoFilter}>
-          <SelectTrigger className="w-36 h-9 text-sm bg-white border-gray-200">
-            <SelectValue placeholder="All Geo" />
-          </SelectTrigger>
-          <SelectContent>
-            {GEO_OPTIONS.map(g => <SelectItem key={g.v} value={g.v}>{g.l}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">GEO</span>
+          <Select value={geoFilter} onValueChange={setGeoFilter}>
+            <SelectTrigger className="w-36 h-9 text-sm bg-card border-border">
+              <SelectValue placeholder="All Geo" />
+            </SelectTrigger>
+            <SelectContent>
+              {GEO_OPTIONS.map(g => <SelectItem key={g.v} value={g.v}>{g.l}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
 
-        <Select value={timeFilter} onValueChange={v => setTimeFilter(v as TimeFilter)}>
-          <SelectTrigger className="w-40 h-9 text-sm bg-white border-gray-200">
-            <SelectValue placeholder="All Time" />
-          </SelectTrigger>
-          <SelectContent>
-            {TIME_OPTIONS.map(t => <SelectItem key={t.v} value={t.v}>{t.l}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">TIMEFRAME</span>
+          <Select value={timeFilter} onValueChange={v => setTimeFilter(v as TimeFilter)}>
+            <SelectTrigger className="w-40 h-9 text-sm bg-card border-border">
+              <SelectValue placeholder="All Time" />
+            </SelectTrigger>
+            <SelectContent>
+              {TIME_OPTIONS.map(t => <SelectItem key={t.v} value={t.v}>{t.l}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
 
-        <Select value={statusFilter} onValueChange={v => setStatusFilter(v as StatusFilter)}>
-          <SelectTrigger className="w-40 h-9 text-sm bg-white border-gray-200">
-            <SelectValue placeholder="All Status" />
-          </SelectTrigger>
-          <SelectContent>
-            {STATUS_OPTIONS.map(s => <SelectItem key={s.v} value={s.v}>{s.l}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">STATUS</span>
+          <Select value={statusFilter} onValueChange={v => setStatusFilter(v as StatusFilter)}>
+            <SelectTrigger className="w-40 h-9 text-sm bg-card border-border">
+              <SelectValue placeholder="All Status" />
+            </SelectTrigger>
+            <SelectContent>
+              {STATUS_OPTIONS.map(s => <SelectItem key={s.v} value={s.v}>{s.l}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
 
-        <div className="relative flex-1 min-w-[200px] max-w-xs">
+        <div className="flex flex-col gap-1 flex-1 min-w-[200px] max-w-xs">
+          <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">ORGANISATION</span>
           <Input
-            className="h-9 text-sm bg-white border-gray-200"
-            placeholder="Search organisation…"
+            className="h-9 text-sm bg-card border-border"
+            placeholder="Search…"
             value={orgSearch}
             onChange={e => setOrgSearch(e.target.value)}
           />
         </div>
 
         {filtersActive && (
-          <Button variant="ghost" size="sm" className="h-9 text-xs text-gray-400 hover:text-gray-700"
+          <Button variant="ghost" size="sm" className="h-9 text-xs text-gray-400 hover:text-gray-700 self-end"
             onClick={() => { setGeoFilter('All'); setTimeFilter('all'); setStatusFilter('All'); setOrgSearch('') }}>
-            Clear filters
+            Clear
           </Button>
         )}
 
@@ -542,11 +696,15 @@ export default function CockpitPage() {
           {filteredDemos.length} demo{filteredDemos.length !== 1 ? 's' : ''}
         </span>
       </div>
+      </div>
+
+      {/* ── Scrollable content ── */}
+      <div className="flex-1 overflow-auto p-6 space-y-5">
 
       {/* ── Demo Pipeline Kanban ── */}
       <div>
         <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
-          Demo Pipeline
+          PIPELINE
         </h2>
         <div className="flex gap-4 items-start">
           {KANBAN_COLS.map(col => {
@@ -558,13 +716,21 @@ export default function CockpitPage() {
             return (
               <KanbanColumn
                 key={col.key}
+                colKey={col.key}
                 label={col.label}
                 demos={colDemos}
                 headerBg={col.headerBg}
                 headerText={col.headerText}
                 accent={col.accent}
+                cardBg={col.cardBg}
                 readinessOverrides={readinessOverrides}
                 onCardClick={d => setDrawerDemo(d)}
+                onDropCard={handleDropCard}
+                onApprove={handleApprove}
+                onCancel={id => setCancelDlg({ open: true, id })}
+                onReschedule={id => setRescheduleDlg({ open: true, id })}
+                onEdit={id => setEditDlg({ open: true, id })}
+                onMarkReady={handleMarkReady}
               />
             )
           })}
@@ -574,7 +740,7 @@ export default function CockpitPage() {
       {/* ── Demo Approval Table ── */}
       <div>
         <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
-          Demo Approval
+          APPROVAL TABLE
         </h2>
         <TableView
           data={filteredDemos}
@@ -591,6 +757,10 @@ export default function CockpitPage() {
         open={drawerDemo !== null}
         onClose={() => setDrawerDemo(null)}
         readinessOverrides={readinessOverrides}
+        onApprove={handleApprove}
+        onCancel={id => setCancelDlg({ open: true, id })}
+        onReschedule={id => setRescheduleDlg({ open: true, id })}
+        onEdit={id => setEditDlg({ open: true, id })}
         onMarkReady={handleMarkReady}
       />
 
@@ -612,6 +782,7 @@ export default function CockpitPage() {
         onClose={() => setEditDlg({ open: false, id: '' })}
         onConfirm={handleConfirmEdit}
       />
+      </div>
     </div>
   )
 }

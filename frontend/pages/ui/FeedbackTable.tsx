@@ -1,9 +1,19 @@
 import { Star } from 'lucide-react'
-import { type OperationFeedback } from '../data/sampleData'
 import GeoBadge from '../../components/GeoBadge'
 
+export interface FeedbackRow {
+  id: string
+  date: string
+  geo: string
+  operator: string
+  satisfaction_score: number
+  reported_issues: string[]
+  comments: string
+  feedback_host: string
+}
+
 interface Props {
-  data: OperationFeedback[]
+  data: FeedbackRow[]
 }
 
 const SAT_PALETTE: Record<number, { bg: string; color: string }> = {
@@ -65,7 +75,7 @@ export default function FeedbackTable({ data }: Props) {
                 {f.date}
               </td>
               <td className="py-2 px-3">
-                <GeoBadge geo={f.geo} />
+                <GeoBadge geo={f.geo as 'UK' | 'JP' | 'US' | 'DE' | 'ST'} />
               </td>
               <td className="py-2 px-3 text-[#0F172A] whitespace-nowrap text-xs">
                 {f.operator}

@@ -14,6 +14,7 @@ export type DemoType =
 
 export interface DemoRequest {
   id: string
+  db_id?: number | null
   status: DemoStatus
   geo: GeoCode
   type: string
