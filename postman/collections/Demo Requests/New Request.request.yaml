@@ -1,0 +1,5 @@
+$kind: http-request
+name: New Request
+url: http://localhost:3001/api/demos
+method: GET
+order: 1783186246289

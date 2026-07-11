@@ -1,0 +1,38 @@
+{
+  "name": "demo-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -n API,UI -c cyan,magenta \"npm run server\" \"npm run frontend\"",
+    "server": "tsx watch server/index.ts",
+    "frontend": "cd frontend && npm run dev",
+    "build": "cd frontend && npm run build",
+    "preview": "cd frontend && npm run preview",
+    "migrate-backlog": "tsx scripts/migrate-backlog.ts",
+    "import-backlog": "tsx scripts/import-backlog.ts",
+    "migrate-notifications": "tsx scripts/migrate-notifications.ts",
+    "get-gmail-token": "tsx scripts/get-gmail-token.ts",
+    "migrate-post-demo": "tsx scripts/migrate-post-demo.ts",
+    "seed-post-demo": "tsx scripts/seed-post-demo.ts",
+    "migrate-admin-users": "tsx scripts/migrate-admin-users.ts",
+    "migrate-demo-ref": "tsx scripts/migrate-demo-ref.ts",
+    "backfill-demo-ref": "tsx scripts/backfill-demo-ref.ts",
+    "normalise-admin-users": "tsx scripts/normalise-admin-users.ts",
+    "migrate-demo-status": "tsx scripts/migrate-demo-status.ts"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "pg": "^8.13.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/node": "^20.14.0",
+    "@types/pg": "^8.11.6",
+    "concurrently": "^9.1.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.4.5"
+  }
+}
