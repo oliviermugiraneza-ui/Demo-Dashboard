@@ -149,6 +149,10 @@ export function useSubmitDemoRequest() {
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify(payload),
       })
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({})) as { error?: string }
+        throw new Error(errJson.error ?? `Server error ${res.status}`)
+      }
       const json = await res.json() as { ok: boolean; error?: string }
       if (!json.ok) throw new Error(json.error ?? 'Submission failed')
       console.log('[useSubmitDemoRequest] saved to public.demo_master:', payload)

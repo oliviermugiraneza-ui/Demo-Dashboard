@@ -414,6 +414,87 @@ async function main() {
     await insertVersion(client, '1.7.2', 'CHECK constraint: operators.role = Operator')
   })
 
+  // ── 17. Revert demo_master.demo_ref to nullable ────────────────────────────
+  await step('Revert demo_master.demo_ref to nullable', async client => {
+    const col = await client.query<{ is_nullable: string }>(
+      `SELECT is_nullable FROM information_schema.columns
+       WHERE table_schema='public' AND table_name='demo_master' AND column_name='demo_ref'`
+    )
+    if (col.rows[0]?.is_nullable === 'YES') {
+      skip('demo_master.demo_ref is already nullable — nothing to do'); return
+    }
+    await client.query(`ALTER TABLE public.demo_master ALTER COLUMN demo_ref DROP NOT NULL`)
+    ok('demo_master.demo_ref: NOT NULL → nullable (UNIQUE constraint kept)')
+    await insertVersion(client, '1.8.0', 'demo_ref nullable: assigned only on APPROVED, not at submission')
+  })
+
+  // ── 18. Sync demo_master sequence to MAX(id) ───────────────────────────────
+  await step('Sync demo_master_id_seq to MAX(id)', async client => {
+    const maxRow = await client.query<{ max_id: string }>(
+      `SELECT MAX(id) AS max_id FROM public.demo_master`
+    )
+    const maxId = Number(maxRow.rows[0]?.max_id ?? 0)
+    if (maxId === 0) { skip('demo_master is empty — sequence untouched'); return }
+
+    const seqRow = await client.query<{ last_value: string; is_called: boolean }>(
+      `SELECT last_value, is_called FROM public.demo_master_id_seq`
+    )
+    const seqNext = Number(seqRow.rows[0]?.last_value ?? 0) + (seqRow.rows[0]?.is_called ? 1 : 0)
+    if (seqNext > maxId) {
+      skip(`sequence next=${seqNext} > max_id=${maxId} — already ahead, nothing to do`); return
+    }
+    await client.query(`SELECT setval('public.demo_master_id_seq', $1)`, [maxId])
+    ok(`demo_master_id_seq reset: next insert will use id=${maxId + 1}`)
+    await insertVersion(client, '1.8.1', 'Sync demo_master_id_seq to MAX(id) after bulk import')
+  })
+
+  // ── 19. Performance indexes — compound + post_demo ────────────────────────
+  // The original Step 3 added single-column indexes. These compound and
+  // post_demo.demo_ref indexes cover the most common query patterns:
+  //   • /api/home queries filter by (status, date_of_demo) together
+  //   • DemoRepository.findAll does a LEFT JOIN ON post_demo.demo_ref
+  //   • /api/demos/tracker sorts by date_of_demo DESC with status filter
+  await step('Performance indexes: compound (status,date) + post_demo.demo_ref', async client => {
+    const toCreate: Array<{ name: string; sql: string }> = [
+      // Compound — covers WHERE status = ? AND date_of_demo BETWEEN ? AND ?
+      {
+        name: 'idx_demo_master_status_date',
+        sql:  `CREATE INDEX IF NOT EXISTS idx_demo_master_status_date
+               ON public.demo_master (status, date_of_demo)`,
+      },
+      // date_request_received DESC — for ORDER BY in /api/home recent-activity
+      {
+        name: 'idx_demo_master_date_request_desc',
+        sql:  `CREATE INDEX IF NOT EXISTS idx_demo_master_date_request_desc
+               ON public.demo_master (date_request_received DESC NULLS LAST)`,
+      },
+      // post_demo.demo_ref — critical for the LEFT JOIN in DemoRepository.findAll
+      {
+        name: 'idx_post_demo_demo_ref',
+        sql:  `CREATE INDEX IF NOT EXISTS idx_post_demo_demo_ref
+               ON public.post_demo (demo_ref)`,
+      },
+      // post_demo.geo — used by /api/post-demo filters
+      {
+        name: 'idx_post_demo_geo',
+        sql:  `CREATE INDEX IF NOT EXISTS idx_post_demo_geo
+               ON public.post_demo (geo)`,
+      },
+      // post_demo.demo_date — used by date-range analytics queries
+      {
+        name: 'idx_post_demo_demo_date',
+        sql:  `CREATE INDEX IF NOT EXISTS idx_post_demo_demo_date
+               ON public.post_demo (demo_date)`,
+      },
+    ]
+    for (const idx of toCreate) {
+      if (await indexExists(client, idx.name)) { skip(`${idx.name} already exists`); continue }
+      await client.query(idx.sql)
+      ok(`Created ${idx.name}`)
+    }
+    await insertVersion(client, '1.9.0', 'Performance indexes: compound (status,date), date_request_desc, post_demo.demo_ref/geo/demo_date')
+  })
+
   // ── Final ─────────────────────────────────────────────────────────────────
   hr()
   log('Verifying schema_version entries:')

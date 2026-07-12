@@ -3,7 +3,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '../lib/shadcn/select'
 import { type DemoRequest, type GeoCode } from './data/sampleData'
-import { useGetDemos } from '../hooks/backend/demos'
+import { useGetTrackerDemos } from '../hooks/backend/demos'
 import DemoDetailDrawer from './ui/DemoDetailDrawer'
 import TrackerTables from './ui/TrackerTables'
 import { type DrawerContext } from './ui/cockpitActions'
@@ -38,14 +38,14 @@ export default function TrackerPage() {
   const [readinessOverrides, setReadinessOverrides] = useState<Record<string, string>>({})
   const [demos,              setDemos]              = useState<DemoRequest[]>([])
 
-  const { data: dbDemos, loading, trigger: fetchDemos } = useGetDemos()
+  const { data: dbDemos, loading, trigger: fetchDemos } = useGetTrackerDemos()
   useEffect(() => { void fetchDemos() }, [])
   useEffect(() => { if (dbDemos) setDemos(dbDemos as DemoRequest[]) }, [dbDemos])
 
   // ── Filtered set ──────────────────────────────────────────────────────────
+  // Server already excludes DELETED and NEED REVIEW — filter by month/geo/type/date only.
   const filtered = useMemo(() =>
     demos.filter(d => {
-      if (d.status === 'DELETED') return false
       if (month !== 'ALL') {
         const parts = d.demo_date.split('-')
         if (parts[1] !== month) return false

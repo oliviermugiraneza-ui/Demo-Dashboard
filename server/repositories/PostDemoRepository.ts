@@ -312,6 +312,7 @@ export class PostDemoRepository {
       avg_decisiveness: string | null
       avg_aggressiveness: string | null
       avg_speed_following: string | null
+      total_interventions: string | null
     }>(
       `SELECT
         model_name,
@@ -320,7 +321,16 @@ export class PostDemoRepository {
         ROUND(AVG(comfort_score)::numeric, 1)          as avg_comfort,
         ROUND(AVG(decisiveness_score)::numeric, 1)     as avg_decisiveness,
         ROUND(AVG(aggressiveness_score)::numeric, 1)   as avg_aggressiveness,
-        ROUND(AVG(speed_following_score)::numeric, 1)  as avg_speed_following
+        ROUND(AVG(speed_following_score)::numeric, 1)  as avg_speed_following,
+        SUM(
+          (SELECT COALESCE(SUM(
+            CASE WHEN jsonb_typeof(v) = 'number' THEN (v #>> '{}')::int
+                 ELSE (v ->> 'count')::int
+            END
+          ), 0)
+          FROM jsonb_each(COALESCE(interventions, '{}'::jsonb)) j(k, v)
+          WHERE jsonb_typeof(v) IN ('number', 'object'))
+        )                                              as total_interventions
       FROM public.post_demo ${where}
       GROUP BY model_name
       ORDER BY avg_safety DESC NULLS LAST`,
@@ -335,6 +345,7 @@ export class PostDemoRepository {
       avg_decisiveness:    row.avg_decisiveness   != null ? parseFloat(row.avg_decisiveness)   : null,
       avg_aggressiveness:  row.avg_aggressiveness != null ? parseFloat(row.avg_aggressiveness) : null,
       avg_speed_following: row.avg_speed_following != null ? parseFloat(row.avg_speed_following) : null,
+      total_interventions: row.total_interventions != null ? parseInt(row.total_interventions, 10) : 0,
     }))
   }
 

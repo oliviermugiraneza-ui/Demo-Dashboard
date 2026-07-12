@@ -115,12 +115,14 @@ export class DemoService {
       start_location: row.start_location?.trim() ?? '',
       route_type:     row.route_type?.trim() ?? '',
       feature_type:   row.feature_type?.trim() ?? '',
-      cross_geo:      row.cross_geo_demo !== null && row.cross_geo_demo !== undefined
-                        ? String(row.cross_geo_demo)
-                        : '',
-      calendar_link:  row.calendar_event_link?.trim() || null,
-      num_sessions:   DemoService.parseNum(row.number_of_sessions_event),
-      duration:       row.length?.trim() ?? '',
+      cross_geo:           row.cross_geo_demo !== null && row.cross_geo_demo !== undefined
+                             ? String(row.cross_geo_demo)
+                             : '',
+      calendar_link:       row.calendar_event_link?.trim() || null,
+      num_sessions:        DemoService.parseNum(row.number_of_sessions_event),
+      duration:            row.length?.trim() ?? '',
+      ops_feedback_count:  DemoService.parseNum(row.ops_feedback_count, 0),
+      ops_feedback_ids:    typeof row.ops_feedback_ids === 'string' ? row.ops_feedback_ids : '',
     }
   }
 

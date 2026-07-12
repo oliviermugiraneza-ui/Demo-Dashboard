@@ -74,3 +74,6 @@ frontend/dist/
 
 # Temporary
 coverage/
+
+# Lakebase migration dumps (contain full DB data — never commit)
+exports/

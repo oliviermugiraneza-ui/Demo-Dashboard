@@ -148,7 +148,6 @@ function DetailDrawer({ record: r, onClose }: { record: PostDemoRecord; onClose:
               <div><span className="text-[9px] font-bold uppercase tracking-wider text-gray-400 block mb-0.5">Comfort</span><ScoreBar value={r.comfort_score} color="#10B981" /></div>
               <div><span className="text-[9px] font-bold uppercase tracking-wider text-gray-400 block mb-0.5">Decisiveness</span><ScoreBar value={r.decisiveness_score} color="#2563EB" /></div>
               <div><span className="text-[9px] font-bold uppercase tracking-wider text-gray-400 block mb-0.5">Aggressiveness</span><ScoreBar value={r.aggressiveness_score} color="#F59E0B" /></div>
-              <div><span className="text-[9px] font-bold uppercase tracking-wider text-gray-400 block mb-0.5">Speed Following</span><ScoreBar value={r.speed_following_score} color="#8B5CF6" /></div>
             </div>
             <DR label="Positive Behaviour"  value={r.positive_behaviour} />
             <DR label="Problem Description" value={r.problem_description} />
@@ -175,21 +174,49 @@ function DetailDrawer({ record: r, onClose }: { record: PostDemoRecord; onClose:
 
           {r.interventions && Object.keys(r.interventions).length > 0 && (
             <DS title="Interventions">
-              {Object.entries(r.interventions).filter(([, v]) => v > 0).map(([k, v]) => (
-                <div key={k} className="py-1 border-b border-gray-50 last:border-0 flex justify-between items-center bg-amber-50/40">
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400">{k.replace(/_/g, ' ')}</span>
-                  <span className="text-xs font-bold text-amber-700">{v}</span>
-                </div>
-              ))}
+              {Object.entries(r.interventions)
+                .map(([k, raw]) => {
+                  const parsed = typeof raw === 'number'
+                    ? { count: raw, safetyCritical: false }
+                    : raw
+                  return { k, count: parsed.count, sc: parsed.safetyCritical }
+                })
+                .filter(({ count }) => count > 0)
+                .map(({ k, count, sc }) => (
+                  <div key={k} className="py-1 border-b border-gray-50 last:border-0 flex justify-between items-center bg-amber-50/40">
+                    <span className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider text-gray-400">
+                      {k.replace(/_/g, ' ')}
+                      {sc && (
+                        <span className="inline-flex items-center gap-0.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                          <span className="px-1 py-0.5 rounded bg-red-100 text-red-600 text-[8px] font-bold">SC</span>
+                        </span>
+                      )}
+                    </span>
+                    <span className="text-xs font-bold text-amber-700">Count: {count}</span>
+                  </div>
+                ))}
             </DS>
           )}
 
           <DS title="Safety & Smoothness">
             <div className="flex items-center gap-2 mb-1.5">
               <span className="text-xs text-gray-500">Safety Critical:</span>
-              {r.safety_critical
-                ? <span className="text-xs font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded border border-red-200">YES</span>
-                : <span className="text-xs text-green-700 bg-green-50 px-2 py-0.5 rounded border border-green-200">No</span>}
+              {(() => {
+                const scCount = r.interventions
+                  ? Object.values(r.interventions).reduce((n, raw) => {
+                      const parsed = typeof raw === 'number' ? { count: raw, safetyCritical: false } : raw
+                      return n + (parsed.safetyCritical ? parsed.count : 0)
+                    }, 0)
+                  : 0
+                return (
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded border ${
+                    scCount > 0
+                      ? 'text-red-600 bg-red-50 border-red-200'
+                      : 'text-green-700 bg-green-50 border-green-200'
+                  }`}>{scCount}</span>
+                )
+              })()}
             </div>
             <div className="mb-1.5">
               <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400 block mb-0.5">Smoothness</span>
@@ -678,7 +705,7 @@ export default function PostDemoPage() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-gray-50 hover:bg-gray-50">
-                    {['Model', 'Runs', 'Avg Safety', 'Avg Comfort', 'Avg Decisive', 'Avg Aggress', 'Avg Speed'].map(h => (
+                    {['Model', 'Runs', 'Avg Safety', 'Avg Comfort', 'Avg Decisive', 'Avg Aggress', 'Nbr Intervens'].map(h => (
                       <TableHead key={h} className="text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap py-2.5">{h}</TableHead>
                     ))}
                   </TableRow>
@@ -692,7 +719,7 @@ export default function PostDemoPage() {
                       <TableCell className="py-2 text-xs font-bold text-emerald-600">{fmt1(m.avg_comfort)}</TableCell>
                       <TableCell className="py-2 text-xs font-bold text-blue-600">{fmt1(m.avg_decisiveness)}</TableCell>
                       <TableCell className="py-2 text-xs font-bold text-amber-600">{fmt1(m.avg_aggressiveness)}</TableCell>
-                      <TableCell className="py-2 text-xs font-bold text-purple-600">{fmt1(m.avg_speed_following)}</TableCell>
+                      <TableCell className="py-2 text-xs font-bold text-purple-600">{m.total_interventions ?? 0}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

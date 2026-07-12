@@ -31,6 +31,8 @@ export interface DemoRow {
   lead_time_days:            number | string | null
   cancelation_reason:        string | null
   date_of_readiness:         string | null
+  ops_feedback_count?:       number | string | null
+  ops_feedback_ids?:         string | null
 }
 
 /** Normalised shape sent to the client */
@@ -61,25 +63,35 @@ export interface NormalisedDemo {
   start_location: string
   route_type:     string
   feature_type:   string
-  cross_geo:      string
-  calendar_link:  string | null
-  num_sessions:   number
-  duration:       string
+  cross_geo:           string
+  calendar_link:       string | null
+  num_sessions:        number
+  duration:            string
+  ops_feedback_count?: number
+  ops_feedback_ids?:   string
 }
 
 /** Query options for DemoRepository.findAll */
 export interface QueryOptions {
-  limit?:     number
-  offset?:    number
-  search?:    string
-  geo?:       string
-  type?:      string
-  status?:    string
-  requester?: string
-  approver?:  string
-  host?:      string
-  sortBy?:    'demo_date' | 'date_requested' | 'lead_days'
-  sortDir?:   'ASC' | 'DESC'
+  limit?:       number
+  offset?:      number
+  search?:      string
+  geo?:         string
+  type?:        string
+  status?:      string
+  /** Comma-separated list of statuses for IN filter, e.g. "APPROVED,CANCELED" */
+  statusIn?:    string
+  requester?:   string
+  approver?:    string
+  host?:        string
+  /** Two-digit month string "01"–"12" — filters EXTRACT(month FROM date_of_demo) */
+  month?:       string
+  /** ISO date "YYYY-MM-DD" — filters date_of_demo >= startDate */
+  startDate?:   string
+  /** ISO date "YYYY-MM-DD" — filters date_of_demo <= endDate */
+  endDate?:     string
+  sortBy?:      'demo_date' | 'date_requested' | 'lead_days'
+  sortDir?:     'ASC' | 'DESC'
 }
 
 /** Input shape for INSERT/UPDATE on demo_master_raw */

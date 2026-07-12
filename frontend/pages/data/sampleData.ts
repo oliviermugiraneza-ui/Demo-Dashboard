@@ -42,6 +42,8 @@ export interface DemoRequest {
   route_type?: string | null
   feature_type?: string | null
   duration?: string | null
+  ops_feedback_count?: number
+  ops_feedback_ids?: string
 }
 
 export interface Interventions {

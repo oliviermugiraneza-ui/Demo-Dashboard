@@ -23,7 +23,8 @@
     "db:cleanup": "tsx scripts/cleanup-database.ts",
     "db:verify": "tsx scripts/verify-database-clean.ts",
     "db:migrate-readiness": "tsx scripts/migrate-production-readiness.ts",
-    "db:health": "tsx scripts/database-health.ts"
+    "db:health": "tsx scripts/database-health.ts",
+    "db:migrate-lakebase": "tsx scripts/migrate-lakebase.ts"
   },
   "dependencies": {
     "cors": "^2.8.5",

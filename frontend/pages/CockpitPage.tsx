@@ -17,7 +17,7 @@ import {
 } from '../lib/shadcn/table'
 import { type DemoRequest, type DemoStatus, type GeoCode } from './data/sampleData'
 import {
-  useGetDemos, useUpdateDemo, usePatchDemoStatus, type UpdateDemoParams,
+  useGetCockpitDemos, useUpdateDemo, usePatchDemoStatus, type UpdateDemoParams,
 } from '../hooks/backend/demos'
 import GeoBadge from '../components/GeoBadge'
 import StatusBadge from '../components/StatusBadge'
@@ -475,7 +475,7 @@ function TableView({ data, onApprove, onCancel, onReschedule, onEdit }: {
 
 export default function CockpitPage() {
   const [demos, setDemos]   = useState<DemoRequest[]>([])
-  const { data: dbDemos, loading: demosLoading, trigger: fetchDemos } = useGetDemos()
+  const { data: dbDemos, loading: demosLoading, trigger: fetchDemos } = useGetCockpitDemos()
   const { trigger: persistUpdate }  = useUpdateDemo()
   const { trigger: patchStatus }    = usePatchDemoStatus()
 

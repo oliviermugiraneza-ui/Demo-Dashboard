@@ -1,5 +1,4 @@
 import { BacklogRepository, type BacklogRow, type BacklogInput, type BacklogQueryOpts } from '../repositories/BacklogRepository.js'
-import { DemoReferenceService } from './DemoReferenceService.js'
 import { DEMO_STATUS } from '../lib/demoStatus.js'
 import { pool } from '../db.js'
 
@@ -38,8 +37,8 @@ export class BacklogService {
     return BacklogRepository.delete(id)
   }
 
-  /** Convert backlog item → new demo_master row. Returns { demoId, demoRef, backlog } */
-  static async convertToDemoRequest(id: number): Promise<{ demoId: number; demoRef?: string; backlog: BacklogRow } | null> {
+  /** Convert backlog item → new demo_master row. Returns { demoId, backlog }. demo_ref is generated later on APPROVED. */
+  static async convertToDemoRequest(id: number): Promise<{ demoId: number; backlog: BacklogRow } | null> {
     const item = await BacklogRepository.findById(id)
     if (!item) return null
 
@@ -71,18 +70,12 @@ export class BacklogService {
     const demoId = Number(result.rows[0]?.id)
     if (!demoId || isNaN(demoId)) throw new Error('INSERT into demo_master did not return a valid id')
 
-    // Generate demo_ref immediately after creating the row
-    const demoRef = await DemoReferenceService.generate(
-      demoId,
-      item.geo ?? 'XX',
-      safeDate(item.preferred_demo_date) ?? today,
-    )
-    console.log('[BacklogService] convert #%d → demo_master id=%d demo_ref=%s', id, demoId, demoRef ?? 'null')
+    console.log('[BacklogService] convert #%d → demo_master id=%d (demo_ref=null, NEED REVIEW)', id, demoId)
 
-    const backlog = await BacklogRepository.markConverted(id, demoId, demoRef)
+    const backlog = await BacklogRepository.markConverted(id, demoId, null)
     if (!backlog) throw new Error(`Failed to mark backlog item ${id} as converted`)
 
-    return { demoId, demoRef: demoRef ?? undefined, backlog }
+    return { demoId, backlog }
   }
 }
 

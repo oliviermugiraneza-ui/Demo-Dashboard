@@ -5,7 +5,7 @@ import {
 } from '../lib/shadcn/select'
 import { Button } from '../lib/shadcn/button'
 import { type DemoRequest, type GeoCode } from './data/sampleData'
-import { useGetDemos } from '../hooks/backend/demos'
+import { useGetCalendarDemos } from '../hooks/backend/demos'
 import DemoDetailDrawer from './ui/DemoDetailDrawer'
 import GeoBadge from '../components/GeoBadge'
 import StatusBadge from '../components/StatusBadge'
@@ -393,7 +393,7 @@ export default function CalendarPage() {
   const [demos, setDemos] = useState<DemoRequest[]>([])
   const [nowDate, setNowDate] = useState(() => new Date())
 
-  const { data: dbDemos, loading, trigger: fetchDemos } = useGetDemos()
+  const { data: dbDemos, loading, trigger: fetchDemos } = useGetCalendarDemos()
   useEffect(() => { void fetchDemos() }, [])
   useEffect(() => { if (dbDemos) setDemos(dbDemos as DemoRequest[]) }, [dbDemos])
 

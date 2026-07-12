@@ -19,6 +19,18 @@ const PORT = Number(process.env.API_PORT ?? 3001)
 app.use(cors({ origin: ['http://localhost:5173', 'http://127.0.0.1:5173'] }))
 app.use(express.json())
 
+// ─── Request timing middleware ────────────────────────────────────────────────
+
+app.use((req, res, next) => {
+  const t0 = Date.now()
+  res.on('finish', () => {
+    const ms = Date.now() - t0
+    const slow = ms > 800 ? ' ⚠ SLOW' : ''
+    console.log('[api] %s %s → %dms %d%s', req.method, req.path, ms, res.statusCode, slow)
+  })
+  next()
+})
+
 // ─── Centralised DB error handler ────────────────────────────────────────────
 
 function handleDbError(err: unknown, res: Response): void {
@@ -79,9 +91,13 @@ app.get('/api/demos', async (req, res) => {
     if (raw.geo)       opts.geo       = raw.geo
     if (raw.type)      opts.type      = raw.type
     if (raw.status)    opts.status    = raw.status
+    if (raw.statusIn)  opts.statusIn  = raw.statusIn
     if (raw.requester) opts.requester = raw.requester
     if (raw.approver)  opts.approver  = raw.approver
     if (raw.host)      opts.host      = raw.host
+    if (raw.month)     opts.month     = raw.month
+    if (raw.startDate) opts.startDate = raw.startDate
+    if (raw.endDate)   opts.endDate   = raw.endDate
     if (raw.sortBy && ['demo_date', 'date_requested', 'lead_days'].includes(raw.sortBy)) {
       opts.sortBy = raw.sortBy as QueryOptions['sortBy']
     }
@@ -98,17 +114,11 @@ app.get('/api/demos', async (req, res) => {
 
 app.post('/api/demos', async (req, res) => {
   try {
-    const body  = req.body as CreateDemoInput
+    const body = req.body as CreateDemoInput
+    console.log('[demos] POST payload:', JSON.stringify(body))
     const newId = await DemoService.createDemo(body)
-
-    // Generate Demo Reference immediately after row creation
-    let demoRef: string | null = null
-    if (newId) {
-      demoRef = await DemoReferenceService.generate(newId, body.geo ?? '', body.date_of_demo ?? '')
-      console.log('[demos] created id=%d demo_ref=%s', newId, demoRef ?? 'null')
-    }
-
-    res.status(201).json({ ok: true, demo_ref: demoRef })
+    console.log('[demos] created id=%d (demo_ref=null, status=NEED REVIEW)', newId)
+    res.status(201).json({ ok: true, id: newId, demo_ref: null })
 
     // Fire demo_created notification — never blocks the request
     if (newId) {
@@ -117,6 +127,9 @@ app.post('/api/demos', async (req, res) => {
         .catch(err => console.error('[notifications] demo_created non-fatal:', String(err)))
     }
   } catch (err) {
+    const e = err as Error
+    console.error('[demos] POST error — payload:', JSON.stringify(req.body))
+    console.error('[demos] POST error:', e.message, e.stack)
     handleDbError(err, res)
   }
 })
@@ -591,25 +604,6 @@ app.put('/api/demos', async (req, res) => {
       const affected = await DemoService.updateDemoById(body.id, body.data ?? {})
       res.json({ ok: true, affected })
 
-      // Regenerate demo_ref whenever date_of_demo or geo changes
-      const needsRefRegen = Boolean(body.data?.date_of_demo || body.data?.geo)
-      if (needsRefRegen) {
-        ;(async () => {
-          try {
-            const updated = await pool.query<{ geo: string | null; date_of_demo: string | null }>(
-              `SELECT geo, date_of_demo FROM public.demo_master WHERE id = $1`, [rid],
-            )
-            const row = updated.rows[0]
-            if (row) {
-              await DemoReferenceService.regenerate(rid, row.geo, row.date_of_demo)
-              console.log('[demos] regenerated demo_ref for id=%d after date/geo change', rid)
-            }
-          } catch (err) {
-            console.error('[demo_ref] regenerate non-fatal:', String(err))
-          }
-        })()
-      }
-
       // demo_mark_ready — fires when readiness date is first set
       if (body.data?.date_of_readiness) {
         NotificationService.fetchDemoRow(rid)
@@ -727,11 +721,23 @@ app.patch('/api/demos/:id/status', async (req, res) => {
     const oldStatus = before ? DemoService.normaliseStatus(before.status) : undefined
 
     const affected = await DemoService.updateDemoById(id, { status })
-    res.json({ ok: true, affected })
+
+    // Generate demo_ref on first approval — synchronous so response + notifications both carry it
+    let approvedRef: string | null = before?.demo_ref ?? null
+    if (status === DEMO_STATUS.APPROVED && before && !before.demo_ref) {
+      try {
+        approvedRef = await DemoReferenceService.generate(id, before.geo, before.date_of_demo)
+        console.log('[demos] APPROVED id=%d → demo_ref=%s', id, approvedRef ?? 'null')
+      } catch (err) {
+        console.error('[demo_ref] generate on approval error:', String(err))
+      }
+    }
+
+    res.json({ ok: true, affected, demo_ref: approvedRef })
 
     // Route to the correct event notification and calendar update — never blocks the request
     if (before) {
-      const demoAfter: DemoNotificationData = { ...before, id, status }
+      const demoAfter: DemoNotificationData = { ...before, id, status, demo_ref: approvedRef }
 
       if (status === DEMO_STATUS.APPROVED) {
         NotificationService.notifyDemoApproved(demoAfter, oldStatus)
@@ -932,18 +938,9 @@ app.post('/api/backlog/:id/convert', async (req, res) => {
         code:  'INVALID_GEO',
       }); return
     }
-    const testDate = previewRow.preferred_demo_date ? new Date(previewRow.preferred_demo_date) : null
-    if (!testDate || isNaN(testDate.getTime())) {
-      res.status(400).json({
-        ok:    false,
-        error: 'Cannot convert: Demo date (Preferred Demo Date) is missing or invalid. Please set a valid date before converting.',
-        code:  'MISSING_DATE',
-      }); return
-    }
-
     const result = await BacklogService.convertToDemoRequest(id)
     if (!result) { res.status(404).json({ ok: false, error: 'Backlog item not found' }); return }
-    res.json({ ok: true, demoId: result.demoId, demo_ref: result.demoRef ?? null, data: result.backlog })
+    res.json({ ok: true, demoId: result.demoId, demo_ref: null, data: result.backlog })
 
     // Fire backlog_converted_to_demo notification — never blocks the request
     const { demoId, backlog } = result
@@ -1475,6 +1472,79 @@ app.get('/api/home', async (req, res) => {
   } catch (err) {
     handleDbError(err, res)
   }
+})
+
+// ─── Page-specific demo endpoints ────────────────────────────────────────────
+// Each endpoint applies a server-side status filter so each page only fetches
+// the rows it can actually display, reducing payload and query cost on Lakebase.
+//
+// All share the same DemoService/DemoRepository pipeline (same normalisation,
+// same LEFT JOIN with post_demo for ops_feedback_count).
+
+// GET /api/demos/cockpit
+// Kanban board: NEED REVIEW + APPROVED + CANCELED only.
+// Excludes COMPLETED and DELETED — the Kanban never renders those.
+app.get('/api/demos/cockpit', async (req, res) => {
+  try {
+    const raw = req.query as Record<string, string | undefined>
+    const opts: QueryOptions = {
+      statusIn: `${DEMO_STATUS.NEED_REVIEW},${DEMO_STATUS.APPROVED},${DEMO_STATUS.CANCELED}`,
+      limit:    Number(raw.limit ?? 500),
+    }
+    if (raw.geo)       opts.geo       = raw.geo
+    if (raw.startDate) opts.startDate = raw.startDate
+    if (raw.endDate)   opts.endDate   = raw.endDate
+    const { data, total } = await DemoService.getDemos(opts)
+    res.json({ ok: true, total, data })
+  } catch (err) { handleDbError(err, res) }
+})
+
+// GET /api/demos/calendar
+// Calendar view: all non-deleted statuses, sorted by date.
+// Supports geo and optional month filter.
+app.get('/api/demos/calendar', async (req, res) => {
+  try {
+    const raw = req.query as Record<string, string | undefined>
+    const opts: QueryOptions = {
+      limit: Number(raw.limit ?? 500),
+      sortBy: 'demo_date',
+      sortDir: 'ASC',
+    }
+    if (raw.geo)       opts.geo       = raw.geo
+    if (raw.month)     opts.month     = raw.month
+    if (raw.startDate) opts.startDate = raw.startDate
+    if (raw.endDate)   opts.endDate   = raw.endDate
+    // Exclude deleted only — calendar shows all other statuses
+    // (NEED REVIEW shows as pending, APPROVED as confirmed events)
+    // We exclude via a status NOT LIKE filter by using the existing search path,
+    // or simply leave it to client filtering since DELETED rows are rare.
+    const { data, total } = await DemoService.getDemos(opts)
+    const visible = data.filter(d => d.status !== 'DELETED')
+    res.json({ ok: true, total: visible.length, data: visible })
+  } catch (err) { handleDbError(err, res) }
+})
+
+// GET /api/demos/tracker
+// Tracker page: APPROVED + COMPLETED + CANCELED.
+// Includes ops_feedback LEFT JOIN (already in DemoRepository.findAll).
+// Supports geo, month, type, startDate, endDate filters.
+app.get('/api/demos/tracker', async (req, res) => {
+  try {
+    const raw = req.query as Record<string, string | undefined>
+    const opts: QueryOptions = {
+      statusIn: `${DEMO_STATUS.APPROVED},${DEMO_STATUS.COMPLETED},${DEMO_STATUS.CANCELED}`,
+      limit:    Number(raw.limit ?? 500),
+      sortBy:   'demo_date',
+      sortDir:  'DESC',
+    }
+    if (raw.geo)       opts.geo       = raw.geo
+    if (raw.type)      opts.type      = raw.type
+    if (raw.month)     opts.month     = raw.month
+    if (raw.startDate) opts.startDate = raw.startDate
+    if (raw.endDate)   opts.endDate   = raw.endDate
+    const { data, total } = await DemoService.getDemos(opts)
+    res.json({ ok: true, total, data })
+  } catch (err) { handleDbError(err, res) }
 })
 
 // ─── Start ────────────────────────────────────────────────────────────────────

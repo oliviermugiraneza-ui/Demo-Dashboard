@@ -1,4 +1,4 @@
-import { pool } from '../db.js'
+import { pool, timedQuery } from '../db.js'
 import type { DemoRow, QueryOptions, CreateDemoInput } from '../types.js'
 
 // Safe SQL expressions for ORDER BY — values come from this map, not user input
@@ -37,6 +37,27 @@ export class DemoRepository {
       params.push(`%${opts.host}%`)
       conditions.push(`LOWER(TRIM(host)) LIKE LOWER($${params.length})`)
     }
+    if (opts.statusIn) {
+      // Comma-separated list, e.g. "APPROVED,CANCELED,NEED REVIEW"
+      const statuses = opts.statusIn.split(',').map(s => s.trim()).filter(Boolean)
+      if (statuses.length > 0) {
+        const placeholders = statuses.map((_, i) => `$${params.length + i + 1}`).join(', ')
+        params.push(...statuses)
+        conditions.push(`TRIM(status) IN (${placeholders})`)
+      }
+    }
+    if (opts.month && /^(0[1-9]|1[0-2])$/.test(opts.month)) {
+      params.push(Number(opts.month))
+      conditions.push(`EXTRACT(MONTH FROM date_of_demo) = $${params.length}`)
+    }
+    if (opts.startDate && /^\d{4}-\d{2}-\d{2}$/.test(opts.startDate)) {
+      params.push(opts.startDate)
+      conditions.push(`date_of_demo >= $${params.length}`)
+    }
+    if (opts.endDate && /^\d{4}-\d{2}-\d{2}$/.test(opts.endDate)) {
+      params.push(opts.endDate)
+      conditions.push(`date_of_demo <= $${params.length}`)
+    }
     if (opts.search) {
       const term = `%${opts.search}%`
       params.push(term)
@@ -69,16 +90,25 @@ export class DemoRepository {
     const dataParams = [...params, limit, offset]
     const dataSql = `
       SELECT
-        id, demo_ref, status, channel, geo, type,
-        date_request_received, date_of_demo,
-        demo_start_time, demo_end_time, length,
-        total_guests, total_vehicles, vehicle_type,
-        start_location, calendar_event_link, slack_link,
-        cross_geo_demo, number_of_sessions_event,
-        description, requester, approver, guests_organization,
-        route_type, feature_type, host,
-        lead_time_days, cancelation_reason, date_of_readiness
-      FROM public.demo_master
+        dm.id, dm.demo_ref, dm.status, dm.channel, dm.geo, dm.type,
+        dm.date_request_received, dm.date_of_demo,
+        dm.demo_start_time, dm.demo_end_time, dm.length,
+        dm.total_guests, dm.total_vehicles, dm.vehicle_type,
+        dm.start_location, dm.calendar_event_link, dm.slack_link,
+        dm.cross_geo_demo, dm.number_of_sessions_event,
+        dm.description, dm.requester, dm.approver, dm.guests_organization,
+        dm.route_type, dm.feature_type, dm.host,
+        dm.lead_time_days, dm.cancelation_reason, dm.date_of_readiness,
+        COALESCE(pf.feedback_count, 0)::int AS ops_feedback_count,
+        COALESCE(pf.feedback_ids, '')       AS ops_feedback_ids
+      FROM public.demo_master dm
+      LEFT JOIN (
+        SELECT demo_ref, COUNT(*)::int AS feedback_count,
+               STRING_AGG(id::text, ',') AS feedback_ids
+        FROM public.post_demo
+        WHERE demo_ref IS NOT NULL AND demo_ref != ''
+        GROUP BY demo_ref
+      ) pf ON pf.demo_ref = dm.demo_ref
       ${clause}
       ORDER BY ${sortExpr} ${dir} NULLS LAST
       LIMIT $${params.length + 1}
@@ -87,7 +117,7 @@ export class DemoRepository {
     const countSql = `SELECT COUNT(*) AS total FROM public.demo_master ${clause}`
 
     const [dataRes, countRes] = await Promise.all([
-      pool.query<DemoRow>(dataSql, dataParams),
+      timedQuery<DemoRow>('DemoRepository.findAll', dataSql, dataParams),
       pool.query<{ total: string }>(countSql, params),
     ])
 

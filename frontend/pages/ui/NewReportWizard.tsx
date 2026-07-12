@@ -741,6 +741,13 @@ export default function NewReportWizard({ onClose, onCreate }: NewReportWizardPr
         if (v && (activeInterventions[k] ?? 0) > 0) activeSC[k] = true
       })
 
+      const interventionsPayload: Record<string, { count: number; safetyCritical: boolean }> = {}
+      Object.entries(activeInterventions).forEach(([k, count]) => {
+        interventionsPayload[k] = { count, safetyCritical: !!activeSC[k] }
+      })
+
+      const scCount = Object.keys(activeSC).length
+
       await onCreate({
         category:              state.category,
         demo_id:               state.demoId,
@@ -766,9 +773,9 @@ export default function NewReportWizard({ onClose, onCreate }: NewReportWizardPr
         reason_for_power_cycle:   state.powerCycle ? (state.powerCycleReason || null) : null,
         power_cycle_required:  state.powerCycle,
         number_of_uds:         state.numberOfUds,
-        interventions:         activeInterventions,
-        interventions_sc:      Object.keys(activeSC).length > 0 ? activeSC : null,
-        safety_critical:       state.safetyCritical,
+        interventions:         interventionsPayload,
+        interventions_sc:      scCount > 0 ? activeSC : null,
+        safety_critical:       scCount > 0,
         smoothness_score:      state.smoothnessScore || null,
       })
       onClose()
@@ -1240,25 +1247,6 @@ export default function NewReportWizard({ onClose, onCreate }: NewReportWizardPr
                 />
               </div>
 
-              {/* Safety Critical */}
-              <div
-                className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                  state.safetyCritical ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-white hover:border-gray-300'
-                }`}
-                onClick={() => set('safetyCritical', !state.safetyCritical)}
-              >
-                <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
-                  state.safetyCritical ? 'border-red-500 bg-red-500' : 'border-gray-300'
-                }`}>
-                  {state.safetyCritical && <Check className="w-3 h-3 text-white" />}
-                </div>
-                <div className="flex-1">
-                  <p className={`text-sm font-semibold ${state.safetyCritical ? 'text-red-700' : 'text-gray-700'}`}>Safety Critical Event</p>
-                  <p className="text-xs text-gray-400">Flag if a safety-critical incident occurred</p>
-                </div>
-                {state.safetyCritical && <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />}
-              </div>
-
               {/* Smoothness */}
               <div>
                 <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">Overall Smoothness</p>
@@ -1314,7 +1302,7 @@ export default function NewReportWizard({ onClose, onCreate }: NewReportWizardPr
                   <PreviewRow label="Reason for Power Cycle" value={state.powerCycleReason || null} />
                 )}
                 <PreviewRow label="Smoothness"           value={state.smoothnessScore > 0 ? `${state.smoothnessScore}/5 ★` : null} />
-                <PreviewRow label="Safety Critical"      value={state.safetyCritical ? '⚠ YES' : null} />
+                <PreviewRow label="Safety Critical"      value={`${Object.entries(state.interventionSC).filter(([k, v]) => v && (state.interventions[k] ?? 0) > 0).length}`} />
                 {state.drivingFeatures.length > 0 && (
                   <div className="flex flex-wrap gap-1 py-1">
                     {state.drivingFeatures.map(f => (

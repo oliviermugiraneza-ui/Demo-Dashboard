@@ -34,7 +34,7 @@ export interface PostDemoRecord {
   number_of_uds: number | null
   power_cycle_required: boolean | null
   reason_for_power_cycle: string | null
-  interventions: Record<string, number> | null
+  interventions: Record<string, number | { count: number; safetyCritical: boolean }> | null
   safety_critical: boolean | null
   smoothness_score: number | null
   created_at: string
@@ -62,6 +62,7 @@ export interface ModelAnalytic {
   avg_decisiveness: number | null
   avg_aggressiveness: number | null
   avg_speed_following: number | null
+  total_interventions?: number
 }
 
 export interface InterventionAnalytic {

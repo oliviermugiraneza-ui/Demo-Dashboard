@@ -77,3 +77,17 @@ export function refreshPool(): void {
   })
   console.log('[db] Pool refreshed — DATABASE_URL reloaded from .env')
 }
+
+// Thin timing wrapper — logs queries that take more than 400 ms.
+// Use this in repositories on hot-path queries so slow Lakebase calls are visible.
+export async function timedQuery<T extends object = Record<string, unknown>>(
+  label: string,
+  sql: string,
+  params?: unknown[],
+): Promise<import('pg').QueryResult<T>> {
+  const t0 = Date.now()
+  const result = await pool.query<T>(sql, params)
+  const ms = Date.now() - t0
+  if (ms > 400) console.warn('[db slow %dms] %s', ms, label)
+  return result
+}

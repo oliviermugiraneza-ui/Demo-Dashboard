@@ -1,4 +1,5 @@
 import { useState, useMemo, type ReactNode } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { type DrawerContext } from './cockpitActions'
 import {
   useReactTable,
@@ -156,10 +157,17 @@ function makeReadinessColumns(): ColumnDef<TrackerRow>[] {
       cell: i => fmtDate(i.getValue<string>()) },
     { id: 'type', accessorFn: r => r.type, header: 'Type' },
     { id: 'organization', accessorFn: r => r.organization, header: 'Organization',
-      cell: i => <span className="font-medium">{i.getValue<string>()}</span> },
+      cell: i => {
+        const v = i.getValue<string>()
+        return <span className="block max-w-[160px] truncate font-medium" title={v}>{v}</span>
+      } },
     { id: 'geo', accessorFn: r => r.geo, header: 'Geo',
       cell: i => <GeoBadge geo={i.getValue<string>()} /> },
-    { id: 'host', accessorFn: r => r.host, header: 'Host' },
+    { id: 'host', accessorFn: r => r.host, header: 'Host',
+      cell: i => {
+        const v = i.getValue<string>()
+        return <span className="block max-w-[120px] truncate" title={v}>{v}</span>
+      } },
     { id: 'lead_days', accessorFn: r => r.lead_days, header: 'Lead Days',
       cell: i => <span className="tabular-nums text-xs">{i.getValue<number>()}d</span> },
     { id: 'requester', accessorFn: r => r.requester, header: 'Requester' },
@@ -173,19 +181,52 @@ function makeReadinessColumns(): ColumnDef<TrackerRow>[] {
   ]
 }
 
-function makeCompletedColumns(): ColumnDef<TrackerRow>[] {
+function makeCompletedColumns(navigate: ReturnType<typeof useNavigate>): ColumnDef<TrackerRow>[] {
   return [
     { id: 'demo_date', accessorFn: r => r.demo_date, header: 'Date',
       cell: i => fmtDate(i.getValue<string>()) },
     { id: 'type', accessorFn: r => r.type, header: 'Type' },
     { id: 'organization', accessorFn: r => r.organization, header: 'Organization',
-      cell: i => <span className="font-medium">{i.getValue<string>()}</span> },
-    { id: 'total_guests', accessorFn: r => r.total_guests, header: 'Guests',
-      cell: i => <span className="tabular-nums">{i.getValue<number>()}</span> },
+      cell: i => {
+        const v = i.getValue<string>()
+        return <span className="block max-w-[160px] truncate font-medium" title={v}>{v}</span>
+      } },
     { id: 'geo', accessorFn: r => r.geo, header: 'Geo',
       cell: i => <GeoBadge geo={i.getValue<string>()} /> },
-    { id: 'host', accessorFn: r => r.host, header: 'Host' },
-    { id: 'requester', accessorFn: r => r.requester, header: 'Requester' },
+    { id: 'host', accessorFn: r => r.host, header: 'Host',
+      cell: i => {
+        const v = i.getValue<string>()
+        return <span className="block max-w-[120px] truncate" title={v}>{v}</span>
+      } },
+    { id: 'total_guests', accessorFn: r => r.total_guests, header: 'Guests',
+      cell: i => <span className="tabular-nums">{i.getValue<number>()}</span> },
+    { id: 'ops_feedback', accessorFn: r => r.ops_feedback_count ?? 0, header: 'Ops Feedback',
+      enableSorting: false,
+      cell: i => {
+        const count = i.getValue<number>()
+        const row   = i.row.original
+        if (count > 0) {
+          const label = count === 1 ? 'View Feedback' : `View Feedback (${count})`
+          return (
+            <button
+              onClick={e => { e.stopPropagation(); navigate('/post-demo') }}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 transition-colors"
+            >
+              {label}
+            </button>
+          )
+        }
+        const hasRef = Boolean(row.demo_ref?.trim())
+        return (
+          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${
+            hasRef
+              ? 'bg-amber-50 text-amber-700 border-amber-200'
+              : 'bg-gray-50 text-gray-400 border-gray-200'
+          }`}>
+            {hasRef ? 'Needs Feedback' : '—'}
+          </span>
+        )
+      } },
     { id: 'effectiveReadiness', accessorFn: r => r.effectiveReadiness, header: 'Date of Readiness',
       cell: i => {
         const v = i.getValue<string | null>()
@@ -216,6 +257,8 @@ function makeCancelledColumns(): ColumnDef<TrackerRow>[] {
 export default function TrackerTables({
   demos, readinessOverrides, onSelectDemo,
 }: TrackerTablesProps) {
+  const navigate = useNavigate()
+
   const toRow = (d: DemoRequest): TrackerRow => ({
     ...d,
     effectiveReadiness: readinessOverrides[d.id] ?? d.readiness_date,
@@ -249,7 +292,7 @@ export default function TrackerTables({
   )
 
   const readinessCols  = useMemo(makeReadinessColumns, [])
-  const completedCols  = useMemo(makeCompletedColumns, [])
+  const completedCols  = useMemo(() => makeCompletedColumns(navigate), [navigate])
   const cancelledCols  = useMemo(makeCancelledColumns, [])
 
   return (
