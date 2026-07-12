@@ -1,9 +1,10 @@
 import { BacklogRepository, type BacklogRow, type BacklogInput, type BacklogQueryOpts } from '../repositories/BacklogRepository.js'
 import { DemoReferenceService } from './DemoReferenceService.js'
+import { DEMO_STATUS } from '../lib/demoStatus.js'
 import { pool } from '../db.js'
 
 const ALLOWED_STATUSES = new Set([
-  'Proposed', 'Requested', 'Arranging', 'Confirmed', 'Completed', 'Cancelled', 'Converted',
+  'Proposed', 'Requested', 'Arranging', 'Confirmed', 'Completed', 'CANCELED', 'Converted',
 ])
 
 export class BacklogService {
@@ -49,10 +50,11 @@ export class BacklogService {
          status, guests_organization, requester, host, vehicle_type,
          date_of_demo, description, geo, type, date_request_received
        ) VALUES (
-         'Needs Review', $1, $2, $3, $4,
-         $5, $6, $7, $8, $9
+         $1, $2, $3, $4, $5,
+         $6, $7, $8, $9, $10
        ) RETURNING id`,
       [
+        DEMO_STATUS.NEED_REVIEW,
         item.company      ?? '',
         item.requestor    ?? '',
         item.host         ?? '',

@@ -208,13 +208,13 @@ app.get('/api/admin/operators', async (req, res) => {
 
 app.post('/api/admin/operators', async (req, res) => {
   try {
-    const { full_name, email, geo, role } = req.body as Record<string, string>
+    const { full_name, email, geo } = req.body as Record<string, string>
     if (!full_name?.trim() || !email?.trim() || !geo?.trim()) {
       res.status(400).json({ ok: false, error: 'full_name, email and geo are required' }); return
     }
     const r = await pool.query<{ id: string }>(
-      `INSERT INTO public.operators (full_name, email, geo, role) VALUES ($1,$2,$3,$4) RETURNING id`,
-      [full_name.trim(), email.trim().toLowerCase(), geo.toUpperCase(), role || 'Operator'],
+      `INSERT INTO public.operators (full_name, email, geo, role) VALUES ($1,$2,$3,'Operator') RETURNING id`,
+      [full_name.trim(), email.trim().toLowerCase(), geo.toUpperCase()],
     )
     res.status(201).json({ ok: true, id: Number(r.rows[0]!.id) })
   } catch (err) {
@@ -227,12 +227,11 @@ app.put('/api/admin/operators/:id', async (req, res) => {
   try {
     const id = Number(req.params.id)
     if (!id) { res.status(400).json({ ok: false, error: 'Invalid id' }); return }
-    const { full_name, email, geo, role } = req.body as Record<string, string>
+    const { full_name, email, geo } = req.body as Record<string, string>
     const sets: string[] = []; const params: unknown[] = []
     if (full_name !== undefined) { params.push(full_name.trim()); sets.push(`full_name=$${params.length}`) }
     if (email     !== undefined) { params.push(email.trim().toLowerCase()); sets.push(`email=$${params.length}`) }
     if (geo       !== undefined) { params.push(geo.toUpperCase()); sets.push(`geo=$${params.length}`) }
-    if (role      !== undefined) { params.push(role); sets.push(`role=$${params.length}`) }
     if (!sets.length) { res.status(400).json({ ok: false, error: 'Nothing to update' }); return }
     params.push(id)
     await pool.query(`UPDATE public.operators SET ${sets.join(',')},updated_at=NOW() WHERE id=$${params.length}`, params)
@@ -264,13 +263,13 @@ app.get('/api/admin/hosts', async (req, res) => {
 
 app.post('/api/admin/hosts', async (req, res) => {
   try {
-    const { full_name, email, geo, role } = req.body as Record<string, string>
+    const { full_name, email, geo } = req.body as Record<string, string>
     if (!full_name?.trim() || !email?.trim() || !geo?.trim()) {
       res.status(400).json({ ok: false, error: 'full_name, email and geo are required' }); return
     }
     const r = await pool.query<{ id: string }>(
-      `INSERT INTO public.hosts (full_name,email,geo,role) VALUES ($1,$2,$3,$4) RETURNING id`,
-      [full_name.trim(), email.trim().toLowerCase(), geo.toUpperCase(), role || 'Host'],
+      `INSERT INTO public.hosts (full_name,email,geo,role) VALUES ($1,$2,$3,'Host') RETURNING id`,
+      [full_name.trim(), email.trim().toLowerCase(), geo.toUpperCase()],
     )
     res.status(201).json({ ok: true, id: Number(r.rows[0]!.id) })
   } catch (err) {
@@ -283,12 +282,11 @@ app.put('/api/admin/hosts/:id', async (req, res) => {
   try {
     const id = Number(req.params.id)
     if (!id) { res.status(400).json({ ok: false, error: 'Invalid id' }); return }
-    const { full_name, email, geo, role } = req.body as Record<string, string>
+    const { full_name, email, geo } = req.body as Record<string, string>
     const sets: string[] = []; const params: unknown[] = []
     if (full_name !== undefined) { params.push(full_name.trim()); sets.push(`full_name=$${params.length}`) }
     if (email     !== undefined) { params.push(email.trim().toLowerCase()); sets.push(`email=$${params.length}`) }
     if (geo       !== undefined) { params.push(geo.toUpperCase()); sets.push(`geo=$${params.length}`) }
-    if (role      !== undefined) { params.push(role); sets.push(`role=$${params.length}`) }
     if (!sets.length) { res.status(400).json({ ok: false, error: 'Nothing to update' }); return }
     params.push(id)
     await pool.query(`UPDATE public.hosts SET ${sets.join(',')},updated_at=NOW() WHERE id=$${params.length}`, params)
@@ -458,12 +456,14 @@ app.delete('/api/admin/vehicles/:id', async (req, res) => {
   } catch (err) { handleDbError(err, res) }
 })
 
-// ─── Admin — Users CRUD /api/admin/users (Admin + Super Admin only) ───────────
+// ─── Admin — Users CRUD /api/admin/users (Assistant + Admin + Super Admin) ────
+
+const ADMIN_USER_ROLES = new Set(['Assistant', 'Admin', 'Super Admin'])
 
 app.get('/api/admin/users', async (req, res) => {
   try {
     const { geo } = req.query as { geo?: string }
-    const params: unknown[] = []; const conditions: string[] = [`role IN ('Admin','Super Admin')`]
+    const params: unknown[] = []; const conditions: string[] = [`role IN ('Assistant','Admin','Super Admin')`]
     if (geo) { params.push(geo.toUpperCase()); conditions.push(`UPPER(TRIM(geo))=$${params.length}`) }
     const where = `WHERE ${conditions.join(' AND ')}`
     const r = await pool.query(`SELECT id,full_name,email,password,geo,role FROM public.admin_users ${where} ORDER BY full_name`, params)
@@ -477,9 +477,10 @@ app.post('/api/admin/users', async (req, res) => {
     if (!full_name?.trim() || !email?.trim() || !geo?.trim()) {
       res.status(400).json({ ok: false, error: 'full_name, email and geo are required' }); return
     }
+    const resolvedRole = role && ADMIN_USER_ROLES.has(role) ? role : 'Admin'
     const r = await pool.query<{ id: string }>(
       `INSERT INTO public.admin_users (full_name,email,password,geo,role) VALUES ($1,$2,$3,$4,$5) RETURNING id`,
-      [full_name.trim(), email.trim().toLowerCase(), password?.trim() || null, geo.toUpperCase(), role || 'Admin'],
+      [full_name.trim(), email.trim().toLowerCase(), password?.trim() || null, geo.toUpperCase(), resolvedRole],
     )
     res.status(201).json({ ok: true, id: Number(r.rows[0]!.id) })
   } catch (err) {
@@ -497,7 +498,12 @@ app.put('/api/admin/users/:id', async (req, res) => {
     if (email     !== undefined) { params.push(email.trim().toLowerCase()); sets.push(`email=$${params.length}`) }
     if (password  !== undefined) { params.push(password?.trim() || null); sets.push(`password=$${params.length}`) }
     if (geo       !== undefined) { params.push(geo.toUpperCase()); sets.push(`geo=$${params.length}`) }
-    if (role      !== undefined) { params.push(role); sets.push(`role=$${params.length}`) }
+    if (role !== undefined) {
+      if (!ADMIN_USER_ROLES.has(role)) {
+        res.status(400).json({ ok: false, error: `Invalid role. Allowed: Assistant, Admin, Super Admin` }); return
+      }
+      params.push(role); sets.push(`role=$${params.length}`)
+    }
     if (!sets.length) { res.status(400).json({ ok: false, error: 'Nothing to update' }); return }
     params.push(id)
     await pool.query(`UPDATE public.admin_users SET ${sets.join(',')},updated_at=NOW() WHERE id=$${params.length}`, params)

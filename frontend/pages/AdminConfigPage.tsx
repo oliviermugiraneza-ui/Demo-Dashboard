@@ -301,7 +301,7 @@ function RowActions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => 
 
 // ─── TAB 1: Admin Users ───────────────────────────────────────────────────────
 
-const ADMIN_ROLES = ['Admin', 'Super Admin']
+const ADMIN_ROLES = ['Assistant', 'Admin', 'Super Admin']
 
 function AdminTab() {
   const crud = useCrud('/api/admin/users')
@@ -404,8 +404,8 @@ function AdminUserRow({ row, onEdit, onDelete }: { row: Row; onEdit: () => void;
 
 // ─── Shared People tab (Hosts + Operators) ────────────────────────────────────
 
-function PeopleTab({ endpoint, entityLabel, roles, defaultRole, searchPlaceholder, addLabel }: {
-  endpoint: string; entityLabel: string; roles: string[]; defaultRole: string
+function PeopleTab({ endpoint, entityLabel, defaultRole, searchPlaceholder, addLabel }: {
+  endpoint: string; entityLabel: string; defaultRole: string
   searchPlaceholder: string; addLabel: string
 }) {
   const crud = useCrud(endpoint)
@@ -467,10 +467,7 @@ function PeopleTab({ endpoint, entityLabel, roles, defaultRole, searchPlaceholde
         <Modal title={`${modal.mode === 'add' ? 'Add' : 'Edit'} ${entityLabel}`} onClose={() => setModal(null)} onSave={save} saving={saving}>
           <Field label="Full Name" required><FieldInput value={form.full_name} onChange={v => setForm(f => ({ ...f, full_name:v }))} placeholder="Full Name" /></Field>
           <Field label="Email" required><FieldInput value={form.email} onChange={v => setForm(f => ({ ...f, email:v }))} type="email" placeholder="name@wayve.ai" /></Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="GEO" required><FieldSelect value={form.geo} onChange={v => setForm(f => ({ ...f, geo:v }))} options={[...GEOS]} /></Field>
-            <Field label="Role" required><FieldSelect value={form.role} onChange={v => setForm(f => ({ ...f, role:v }))} options={roles} /></Field>
-          </div>
+          <Field label="GEO" required><FieldSelect value={form.geo} onChange={v => setForm(f => ({ ...f, geo:v }))} options={[...GEOS]} /></Field>
         </Modal>
       )}
       {del && <ConfirmDelete name={String(del.full_name)} onConfirm={confirmDel} onCancel={() => setDel(null)} />}
@@ -479,12 +476,12 @@ function PeopleTab({ endpoint, entityLabel, roles, defaultRole, searchPlaceholde
 }
 
 function HostsTab() {
-  return <PeopleTab endpoint="/api/admin/hosts" entityLabel="Host" roles={['Host']} defaultRole="Host"
+  return <PeopleTab endpoint="/api/admin/hosts" entityLabel="Host" defaultRole="Host"
     searchPlaceholder="Search host…" addLabel="+ Add Host" />
 }
 
 function OperatorsTab() {
-  return <PeopleTab endpoint="/api/admin/operators" entityLabel="Operator" roles={['Operator','Assistant']} defaultRole="Operator"
+  return <PeopleTab endpoint="/api/admin/operators" entityLabel="Operator" defaultRole="Operator"
     searchPlaceholder="Search operator…" addLabel="+ Add Operator" />
 }
 

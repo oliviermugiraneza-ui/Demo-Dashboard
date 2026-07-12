@@ -31,15 +31,15 @@ export type BacklogStatus =
   | 'Arranging'
   | 'Confirmed'
   | 'Completed'
-  | 'Cancelled'
+  | 'CANCELED'
   | 'Converted'
 
 /** All selectable statuses (used in forms/filters) */
 export const BACKLOG_STATUSES: BacklogStatus[] = [
-  'Proposed', 'Requested', 'Arranging', 'Confirmed', 'Completed', 'Cancelled',
+  'Proposed', 'Requested', 'Arranging', 'Confirmed', 'Completed', 'CANCELED',
 ]
 
-/** Statuses shown as kanban columns (Completed and Cancelled shown separately as tables) */
+/** Statuses shown as kanban columns (Completed and CANCELED shown separately as tables) */
 export const KANBAN_STATUSES: BacklogStatus[] = [
   'Proposed', 'Requested', 'Arranging', 'Confirmed',
 ]

@@ -147,10 +147,10 @@ export default function HomePage() {
       {/* ── KPI cards (5) ── */}
       <div className="grid grid-cols-5 gap-4">
         <KpiCard label="Proposed"        value={kpis?.proposed        ?? 0} borderColor={KPI_BORDER_COLOR.proposed} />
-        <KpiCard label="Pending Approval" value={kpis?.pendingApproval ?? 0} borderColor={KPI_BORDER_COLOR.pendingApproval} />
-        <KpiCard label="Approved"        value={kpis?.approved        ?? 0} borderColor={KPI_BORDER_COLOR.approved} />
+        <KpiCard label="NEED REVIEW" value={kpis?.pendingApproval ?? 0} borderColor={KPI_BORDER_COLOR.pendingApproval} />
+        <KpiCard label="APPROVED"         value={kpis?.approved        ?? 0} borderColor={KPI_BORDER_COLOR.approved} />
         <KpiCard label="Total Guests"    value={kpis?.totalGuests     ?? 0} borderColor={KPI_BORDER_COLOR.totalGuests} />
-        <KpiCard label="Cancelled"       value={kpis?.cancelled       ?? 0} borderColor={KPI_BORDER_COLOR.cancelled} />
+        <KpiCard label="CANCELED"       value={kpis?.cancelled       ?? 0} borderColor={KPI_BORDER_COLOR.cancelled} />
       </div>
 
       {/* ── Two-panel row ── */}

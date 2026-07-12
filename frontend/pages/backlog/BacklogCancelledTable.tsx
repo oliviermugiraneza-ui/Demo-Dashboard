@@ -30,7 +30,7 @@ export default function BacklogCancelledTable({ items, onSelectItem }: BacklogCa
         <div className="flex items-center gap-2">
           <XCircle className="w-4 h-4 text-red-400" />
           <span className="text-[11px] font-bold uppercase tracking-wider text-red-700">
-            Cancelled
+            CANCELED
           </span>
           <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-600 min-w-[20px] text-center">
             {items.length}

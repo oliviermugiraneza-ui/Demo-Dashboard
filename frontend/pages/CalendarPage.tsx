@@ -562,10 +562,10 @@ export default function CalendarPage() {
               <SelectTrigger className="w-36 bg-card text-sm h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="ALL">All Status</SelectItem>
-                <SelectItem value="APPROVED">Approved</SelectItem>
-                <SelectItem value="NEED REVIEW">Need Review</SelectItem>
-                <SelectItem value="CANCELED">Canceled</SelectItem>
-                <SelectItem value="COMPLETED">Completed</SelectItem>
+                <SelectItem value="APPROVED">APPROVED</SelectItem>
+                <SelectItem value="NEED REVIEW">NEED REVIEW</SelectItem>
+                <SelectItem value="CANCELED">CANCELED</SelectItem>
+                <SelectItem value="COMPLETED">COMPLETED</SelectItem>
               </SelectContent>
             </Select>
           </div>

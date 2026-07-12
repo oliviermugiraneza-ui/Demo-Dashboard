@@ -106,9 +106,9 @@ export default function ApprovalsPage() {
       {/* Stats row */}
       <div className="flex items-center gap-3 flex-wrap">
         <StatChip label="Pending"   value={stats?.pending   ?? 0} color="#D97706" />
-        <StatChip label="Approved"  value={stats?.approved  ?? 0} color="#059669" />
+        <StatChip label="APPROVED"  value={stats?.approved  ?? 0} color="#059669" />
         <StatChip label="Rejected"  value={stats?.rejected  ?? 0} color="#DC2626" />
-        <StatChip label="Completed" value={stats?.completed ?? 0} color="#2563EB" />
+        <StatChip label="COMPLETED" value={stats?.completed ?? 0} color="#2563EB" />
         <Button variant="ghost" size="sm" className="ml-auto gap-1.5 text-gray-400 hover:text-gray-700"
           onClick={() => { void fetchList({ status: 'pending', pageSize: 50 }); void fetchStats() }}>
           <RefreshCw className="w-3.5 h-3.5" /> Refresh

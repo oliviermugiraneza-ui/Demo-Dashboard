@@ -32,8 +32,8 @@ export const STATUS_CONFIG: Record<BacklogStatus, StatusConfig> = {
     label: 'Completed', bg: '#F0FDF4', text: '#166534', border: '#BBF7D0',
     headerBg: '#DCFCE7', headerText: '#15803D', accent: '#22C55E', cardBg: '#FAFAFA',
   },
-  Cancelled: {
-    label: 'Cancelled', bg: '#FEF2F2', text: '#991B1B', border: '#FECACA',
+  CANCELED: {
+    label: 'CANCELED', bg: '#FEF2F2', text: '#991B1B', border: '#FECACA',
     headerBg: '#FEE2E2', headerText: '#991B1B', accent: '#EF4444', cardBg: '#FAFAFA',
   },
   Converted: {

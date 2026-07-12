@@ -21,10 +21,10 @@ export const COL_STATUS: Record<ColKey, string> = {
 }
 
 export function statusToLabel(dbStatus: string): string {
-  if (dbStatus === 'APPROVED')   return 'Approved'
-  if (dbStatus === 'CANCELED')   return 'Canceled'
-  if (dbStatus === 'NEED REVIEW') return 'Need Review'
-  if (dbStatus === 'COMPLETED')  return 'Completed'
+  if (dbStatus === 'APPROVED')    return 'APPROVED'
+  if (dbStatus === 'CANCELED')    return 'CANCELED'
+  if (dbStatus === 'NEED REVIEW') return 'NEED REVIEW'
+  if (dbStatus === 'COMPLETED')   return 'COMPLETED'
   return dbStatus
 }
 

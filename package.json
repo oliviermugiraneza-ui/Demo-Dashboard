@@ -18,7 +18,12 @@
     "migrate-demo-ref": "tsx scripts/migrate-demo-ref.ts",
     "backfill-demo-ref": "tsx scripts/backfill-demo-ref.ts",
     "normalise-admin-users": "tsx scripts/normalise-admin-users.ts",
-    "migrate-demo-status": "tsx scripts/migrate-demo-status.ts"
+    "migrate-demo-status": "tsx scripts/migrate-demo-status.ts",
+    "db:audit": "tsx scripts/audit-database.ts",
+    "db:cleanup": "tsx scripts/cleanup-database.ts",
+    "db:verify": "tsx scripts/verify-database-clean.ts",
+    "db:migrate-readiness": "tsx scripts/migrate-production-readiness.ts",
+    "db:health": "tsx scripts/database-health.ts"
   },
   "dependencies": {
     "cors": "^2.8.5",

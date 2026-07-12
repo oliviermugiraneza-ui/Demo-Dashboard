@@ -686,7 +686,7 @@ export default function PostDemoPage() {
                 <TableBody>
                   {topModels.map((m, i) => (
                     <TableRow key={m.model_name} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}>
-                      <TableCell className="py-2 text-xs font-mono font-medium text-gray-800 max-w-[120px] truncate" title={m.model_name}>{sn(m.model_name)}</TableCell>
+                      <TableCell className="py-2 text-xs font-mono font-medium text-gray-800 max-w-[120px] truncate"><span title={m.model_name}>{sn(m.model_name)}</span></TableCell>
                       <TableCell className="py-2 text-xs font-bold text-gray-700">{m.run_count}</TableCell>
                       <TableCell className="py-2 text-xs font-bold text-red-600">{fmt1(m.avg_safety)}</TableCell>
                       <TableCell className="py-2 text-xs font-bold text-emerald-600">{fmt1(m.avg_comfort)}</TableCell>

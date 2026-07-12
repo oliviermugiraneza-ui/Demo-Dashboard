@@ -21,10 +21,10 @@ import { GEO_OPTIONS } from './data/demoTypeConfig'
 
 const STATUS_OPTIONS = [
   { value: '', label: 'All Statuses' },
-  { value: 'pending',   label: 'Needs Review' },
-  { value: 'approved',  label: 'Approved' },
-  { value: 'rejected',  label: 'Rejected' },
-  { value: 'completed', label: 'Completed' },
+  { value: 'NEED REVIEW', label: 'NEED REVIEW' },
+  { value: 'APPROVED',    label: 'APPROVED' },
+  { value: 'CANCELED',    label: 'CANCELED' },
+  { value: 'COMPLETED',   label: 'COMPLETED' },
 ]
 
 const PAGE_SIZE = 15
@@ -79,10 +79,10 @@ export default function AdminPage() {
   // Stat summary bar
   const statBar = useMemo(() => [
     { label: 'Total',     value: stats?.total     ?? 0, color: '#64748B' },
-    { label: 'Pending',   value: stats?.pending   ?? 0, color: '#D97706' },
-    { label: 'Approved',  value: stats?.approved  ?? 0, color: '#059669' },
+    { label: 'NEED REVIEW', value: stats?.pending   ?? 0, color: '#D97706' },
+    { label: 'APPROVED',  value: stats?.approved  ?? 0, color: '#059669' },
     { label: 'Rejected',  value: stats?.rejected  ?? 0, color: '#DC2626' },
-    { label: 'Completed', value: stats?.completed ?? 0, color: '#2563EB' },
+    { label: 'COMPLETED', value: stats?.completed ?? 0, color: '#2563EB' },
   ], [stats])
 
   return (

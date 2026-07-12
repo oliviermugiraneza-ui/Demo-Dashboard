@@ -72,7 +72,7 @@ export default function BacklogKanban({
   // Group items by status (only KANBAN_STATUSES — Completed shown separately)
   const byStatus: Record<BacklogStatus, BacklogItem[]> = {
     Proposed:  [], Requested: [], Arranging: [],
-    Confirmed: [], Completed: [], Cancelled: [], Converted: [],
+    Confirmed: [], Completed: [], CANCELED: [], Converted: [],
   }
   for (const item of items) {
     const s = item.status as BacklogStatus

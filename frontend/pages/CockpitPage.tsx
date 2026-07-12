@@ -52,9 +52,9 @@ const TIME_OPTIONS: { v: TimeFilter; l: string }[] = [
 
 const STATUS_OPTIONS: { v: StatusFilter; l: string }[] = [
   { v: 'All',          l: 'All Status' },
-  { v: 'NEED REVIEW',  l: 'Need Review' },
-  { v: 'APPROVED',     l: 'Approved' },
-  { v: 'CANCELED',     l: 'Canceled' },
+  { v: 'NEED REVIEW',  l: 'NEED REVIEW' },
+  { v: 'APPROVED',     l: 'APPROVED' },
+  { v: 'CANCELED',     l: 'CANCELED' },
 ]
 
 const KANBAN_COLS: {

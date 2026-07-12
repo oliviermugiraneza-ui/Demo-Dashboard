@@ -67,10 +67,10 @@ export interface StatusConfig {
 }
 
 const STATUS_MAP: Record<string, StatusConfig> = {
-  pending:   { label: 'Needs Review', bg: '#FFFBEB', text: '#B45309', border: '#FDE68A' },
-  approved:  { label: 'Approved',     bg: '#ECFDF5', text: '#065F46', border: '#6EE7B7' },
-  rejected:  { label: 'Rejected',     bg: '#FEF2F2', text: '#991B1B', border: '#FCA5A5' },
-  completed: { label: 'Completed',    bg: '#EFF6FF', text: '#1E40AF', border: '#BFDBFE' },
+  'NEED REVIEW': { label: 'NEED REVIEW', bg: '#FFFBEB', text: '#B45309', border: '#FDE68A' },
+  'APPROVED':    { label: 'APPROVED',     bg: '#ECFDF5', text: '#065F46', border: '#6EE7B7' },
+  'CANCELED':    { label: 'CANCELED',     bg: '#FEF2F2', text: '#991B1B', border: '#FCA5A5' },
+  'COMPLETED':   { label: 'COMPLETED',    bg: '#EFF6FF', text: '#1E40AF', border: '#BFDBFE' },
 }
 
 export function getStatusConfig(status: string): StatusConfig {

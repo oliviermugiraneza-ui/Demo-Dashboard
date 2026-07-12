@@ -1,5 +1,6 @@
 import os from 'os'
 import { pool } from '../db.js'
+import { DEMO_STATUS } from '../lib/demoStatus.js'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -380,12 +381,11 @@ export function buildDemoEventEmailHtml(
   const statusBadge = (s: string | null) => {
     if (!s) return '—'
     const colours: Record<string, string> = {
-      'Reviewed':     'background:#d1fae5;color:#065f46',
-      'Approved':     'background:#d1fae5;color:#065f46',
-      'Canceled':     'background:#fee2e2;color:#991b1b',
-      'Cancelled':    'background:#fee2e2;color:#991b1b',
-      'Needs Review': 'background:#fef3c7;color:#92400e',
-      'Needs review': 'background:#fef3c7;color:#92400e',
+      [DEMO_STATUS.APPROVED]:    'background:#d1fae5;color:#065f46',
+      [DEMO_STATUS.CANCELED]:    'background:#fee2e2;color:#991b1b',
+      [DEMO_STATUS.NEED_REVIEW]: 'background:#fef3c7;color:#92400e',
+      [DEMO_STATUS.COMPLETED]:   'background:#dbeafe;color:#1e40af',
+      [DEMO_STATUS.DELETED]:     'background:#f1f5f9;color:#64748b',
     }
     const style = colours[s] ?? 'background:#f3f4f6;color:#374151'
     return `<span style="${style};font-size:11px;font-weight:700;padding:3px 10px;border-radius:9999px;">${s}</span>`
@@ -731,7 +731,7 @@ export class NotificationService {
     const demoData = demo ?? {
       id:                  demoId,
       demo_ref:            null,
-      status:              'Needs Review',
+      status:              DEMO_STATUS.NEED_REVIEW,
       geo:                 backlog.geo,
       type:                backlog.demo_type,
       guests_organization: backlog.company,

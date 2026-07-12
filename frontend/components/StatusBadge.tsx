@@ -6,7 +6,7 @@ interface StatusBadgeProps {
 }
 
 export default function StatusBadge({ status, showDot = true }: StatusBadgeProps) {
-  const cfg: StatusCfg = STATUS_CONFIG[status] ?? {
+  const cfg = STATUS_CONFIG[status] ?? {
     bg:'#F1F5F9', text:'#64748B', dot:'#94A3B8', label: status
   }
 

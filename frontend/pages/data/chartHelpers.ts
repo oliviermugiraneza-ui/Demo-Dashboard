@@ -47,8 +47,8 @@ export function aggregateDemosByMonth(
     }
     const bucket = map.get(key)!
     bucket.total++
-    if (d.status === 'Reviewed') bucket.reviewed++
-    else if (d.status === 'Canceled') bucket.canceled++
+    if (d.status === 'APPROVED') bucket.reviewed++
+    else if (d.status === 'CANCELED') bucket.canceled++
     else bucket.needsReview++
   }
 
@@ -114,7 +114,7 @@ export function aggregateReadiness(
   demos: DemoRequest[] = demoRequests,
 ): { buckets: ReadinessBucket[]; rate: number } {
   const map = new Map<string, ReadinessBucket>()
-  const eligible = demos.filter(d => d.status !== 'Canceled' && d.status !== 'DELETED')
+  const eligible = demos.filter(d => d.status !== 'CANCELED' && d.status !== 'DELETED')
 
   for (const d of eligible) {
     const lb = leadBand(d.lead_days)

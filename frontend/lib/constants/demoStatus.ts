@@ -12,11 +12,11 @@ export type DemoStatusValue = typeof DEMO_STATUS[keyof typeof DEMO_STATUS]
 export const STATUS_CONFIG: Record<string, {
   bg: string; text: string; dot: string; label: string
 }> = {
-  [DEMO_STATUS.NEED_REVIEW]: { bg: '#FEF3C7', text: '#92400E', dot: '#F59E0B', label: 'Need Review' },
-  [DEMO_STATUS.APPROVED]:    { bg: '#DCFCE7', text: '#15803D', dot: '#22C55E', label: 'Approved'    },
-  [DEMO_STATUS.CANCELED]:    { bg: '#FEE2E2', text: '#B91C1C', dot: '#EF4444', label: 'Canceled'    },
-  [DEMO_STATUS.COMPLETED]:   { bg: '#DBEAFE', text: '#1E40AF', dot: '#3B82F6', label: 'Completed'   },
-  'DELETED':                 { bg: '#F1F5F9', text: '#64748B', dot: '#94A3B8', label: 'Deleted'     },
+  [DEMO_STATUS.NEED_REVIEW]: { bg: '#FEF3C7', text: '#92400E', dot: '#F59E0B', label: 'NEED REVIEW' },
+  [DEMO_STATUS.APPROVED]:    { bg: '#DCFCE7', text: '#15803D', dot: '#22C55E', label: 'APPROVED'    },
+  [DEMO_STATUS.CANCELED]:    { bg: '#FEE2E2', text: '#B91C1C', dot: '#EF4444', label: 'CANCELED'    },
+  [DEMO_STATUS.COMPLETED]:   { bg: '#DBEAFE', text: '#1E40AF', dot: '#3B82F6', label: 'COMPLETED'   },
+  'DELETED':                 { bg: '#F1F5F9', text: '#64748B', dot: '#94A3B8', label: 'DELETED'     },
 }
 
 /** Accent colour for KPI card top borders. */

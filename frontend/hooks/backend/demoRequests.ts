@@ -84,9 +84,9 @@ export function useGetDemoRequestStats() {
     const active = demos.filter(d => d.status !== 'DELETED')
     return {
       total:    active.length,
-      pending:  active.filter(d => d.status === 'Needs Review').length,
-      approved: active.filter(d => d.status === 'Reviewed').length,
-      canceled: active.filter(d => d.status === 'Canceled').length,
+      pending:  active.filter(d => d.status === 'NEED REVIEW').length,
+      approved: active.filter(d => d.status === 'APPROVED').length,
+      canceled: active.filter(d => d.status === 'CANCELED').length,
     }
   })
 }
@@ -112,7 +112,7 @@ export function useSubmitDemoRequest() {
       const endT    = String(formData.demo_end_time   ?? '00:00')
 
       const raw: Record<string, unknown> = {
-        status:               'Needs Review',
+        status:               'NEED REVIEW',
         geo:                  formData.geo,
         type:                 formData.type,
         date_request_received: new Date().toISOString(),

@@ -121,9 +121,9 @@ export default function BacklogPage() {
   }, [items, search, statusFilter, geoFilter, priorityFilter, timeframe])
 
   // Separate active (non-completed, non-cancelled), completed, and cancelled
-  const activeItems    = useMemo(() => filtered.filter(i => i.status !== 'Completed' && i.status !== 'Cancelled'), [filtered])
+  const activeItems    = useMemo(() => filtered.filter(i => i.status !== 'Completed' && i.status !== 'CANCELED'), [filtered])
   const completedItems = useMemo(() => items.filter(i => i.status === 'Completed'), [items])
-  const cancelledItems = useMemo(() => items.filter(i => i.status === 'Cancelled'), [items])
+  const cancelledItems = useMemo(() => items.filter(i => i.status === 'CANCELED'), [items])
 
   // Counts for status filter labels
   const counts = useMemo(() => {

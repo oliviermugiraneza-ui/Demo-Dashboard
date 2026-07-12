@@ -144,7 +144,7 @@ export default function DemoDetailDrawer({
           </div>
 
           {/* Cancellation reason */}
-          {colKey === 'cancelled' && (
+          {colKey === 'canceled' && (
             <div className="px-3 py-2.5 rounded-lg bg-red-50 border border-red-200">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-red-400 mb-0.5">
                 Cancellation Reason
@@ -230,7 +230,7 @@ export default function DemoDetailDrawer({
           </div>
 
           {/* Readiness display */}
-          {colKey === 'reviewed' && hasReadiness && (
+          {colKey === 'approved' && hasReadiness && (
             <div className="inline-flex items-center gap-2 px-3 py-2.5 rounded-lg bg-green-50 border border-green-200 text-green-700 text-sm font-semibold w-full">
               <CheckCircle2 className="w-4 h-4 shrink-0" />
               Ready — Marked {fmtDate(effectiveReadiness!)}

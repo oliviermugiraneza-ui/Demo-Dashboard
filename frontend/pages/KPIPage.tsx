@@ -211,11 +211,11 @@ export default function KPIPage() {
   const totalSessions    = filteredDemos.reduce((sum, d) => sum + (d.num_sessions ?? 1), 0)
   const totalGuests      = filteredDemos.reduce((s, d) => s + d.total_guests, 0)
   const approvedUpcoming = filteredDemos.filter(
-    d => d.status === 'Reviewed' && d.demo_date >= today,
+    d => d.status === 'APPROVED' && d.demo_date >= today,
   ).length
-  const cancelledCount   = filteredDemos.filter(d => d.status === 'Canceled').length
+  const cancelledCount   = filteredDemos.filter(d => d.status === 'CANCELED').length
   const completionRate   = totalDemos > 0
-    ? Math.round((filteredDemos.filter(d => d.status === 'Reviewed').length / totalDemos) * 100)
+    ? Math.round((filteredDemos.filter(d => d.status === 'APPROVED').length / totalDemos) * 100)
     : 0
 
   const avgSatisfaction = useMemo(() => {
@@ -240,9 +240,9 @@ export default function KPIPage() {
       const ds = filteredDemos.filter(d => d.geo === geo)
       return {
         geo,
-        Approved:      ds.filter(d => d.status === 'Reviewed').length,
-        'Needs Review': ds.filter(d => d.status === 'Needs Review' || d.status === 'NEEDS REVIEW').length,
-        Cancelled:     ds.filter(d => d.status === 'Canceled').length,
+        APPROVED:      ds.filter(d => d.status === 'APPROVED').length,
+        "NEED REVIEW": ds.filter(d => d.status === 'NEED REVIEW').length,
+        CANCELED:     ds.filter(d => d.status === 'CANCELED').length,
       }
     })
   }, [filteredDemos])
@@ -251,7 +251,7 @@ export default function KPIPage() {
     const geos: GeoCode[] = ['UK', 'JP', 'US', 'DE']
     return geos.map(geo => {
       const ds = filteredDemos.filter(
-        d => d.geo === geo && d.status !== 'Canceled' && d.status !== 'DELETED',
+        d => d.geo === geo && d.status !== 'CANCELED' && d.status !== 'DELETED',
       )
       return {
         geo,
@@ -265,7 +265,7 @@ export default function KPIPage() {
 
   const readinessRate = useMemo(() => {
     const eligible = filteredDemos.filter(
-      d => d.status !== 'Canceled' && d.status !== 'DELETED',
+      d => d.status !== 'CANCELED' && d.status !== 'DELETED',
     )
     if (!eligible.length) return 0
     return Math.round(
@@ -495,9 +495,9 @@ export default function KPIPage() {
               <YAxis type="category" dataKey="geo" tick={{ fontSize: 11, fill: '#94A3B8' }} width={28} />
               <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #E2E8F0' }} />
               <Legend iconSize={10} wrapperStyle={{ fontSize: 11 }} />
-              <Bar dataKey="Approved"      stackId="a" fill="#10B981" radius={[0, 0, 0, 0]} />
-              <Bar dataKey="Needs Review"  stackId="a" fill="#F59E0B" />
-              <Bar dataKey="Cancelled"     stackId="a" fill="#EF4444" radius={[0, 3, 3, 0]} />
+              <Bar dataKey="APPROVED"      stackId="a" fill="#10B981" radius={[0, 0, 0, 0]} />
+              <Bar dataKey="NEED REVIEW"  stackId="a" fill="#F59E0B" />
+              <Bar dataKey="CANCELED"     stackId="a" fill="#EF4444" radius={[0, 3, 3, 0]} />
             </BarChart>
           </ResponsiveContainer>
           <div className="mt-3 pt-3 border-t border-border flex items-center gap-2">
