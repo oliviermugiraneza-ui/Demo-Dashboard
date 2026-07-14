@@ -1,37 +1,35 @@
-import { Pool } from 'pg'
-import dotenv from 'dotenv'
+// ─── Database singleton ───────────────────────────────────────────────────────
+// Exports a single pg Pool shared across all requests.
+// Never recreate the pool per request — it defeats connection pooling.
+//
+// config/index.ts MUST be imported before this module (it loads dotenv).
+// server/index.ts ensures correct import ordering.
+
+import { Pool }    from 'pg'
+import dotenv      from 'dotenv'
 import { resolve, dirname } from 'path'
-import { fileURLToPath } from 'url'
+import { fileURLToPath }    from 'url'
+import { config }  from './config/index.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const ENV_PATH = resolve(__dirname, '../.env')
+const ENV_PATH  = resolve(__dirname, '../.env')
 
-function loadEnv() {
+// Re-reads .env for the refreshPool() token-rotation path only.
+// Regular startup uses config (which already loaded the env file).
+function reloadLocalEnv(): void {
   dotenv.config({ path: ENV_PATH, override: true })
 }
 
-loadEnv()
-
-function isLocalConnection(url: string): boolean {
-  try {
-    const { hostname } = new URL(url)
-    return hostname === 'localhost' || hostname === '127.0.0.1'
-  } catch {
-    return false
-  }
-}
-
 function createPool(): Pool {
-  if (!process.env.DATABASE_URL) {
-    throw new Error('DATABASE_URL is not set. Create a .env file at the project root.')
+  if (!config.database.url) {
+    throw new Error('DATABASE_URL is not set. Add it to .env or Cloud Run environment.')
   }
-  const local = isLocalConnection(process.env.DATABASE_URL)
   return new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: local ? false : { rejectUnauthorized: false },
-    max: 5,
-    idleTimeoutMillis: 60_000,
-    connectionTimeoutMillis: 10_000,
+    connectionString:        config.database.url,
+    ssl:                     config.database.ssl,
+    max:                     config.database.max,
+    idleTimeoutMillis:       config.database.idleTimeoutMs,
+    connectionTimeoutMillis: config.database.connectionTimeoutMs,
   })
 }
 
@@ -40,6 +38,8 @@ export let pool = createPool()
 pool.on('error', (err) => {
   console.error('[db] Unexpected pool error:', err.message)
 })
+
+// ─── Auth / connection error helpers ─────────────────────────────────────────
 
 export function isAuthError(err: unknown): boolean {
   const e = err as { code?: string; message?: string }
@@ -56,38 +56,72 @@ export function isConnError(err: unknown): boolean {
   const e = err as { code?: string; message?: string }
   return (
     e.code === 'ECONNREFUSED' ||
-    e.code === 'ENOTFOUND' ||
-    e.code === 'ETIMEDOUT' ||
-    e.code === 'ECONNRESET' ||
+    e.code === 'ENOTFOUND'   ||
+    e.code === 'ETIMEDOUT'   ||
+    e.code === 'ECONNRESET'  ||
     Boolean(e.message?.toLowerCase().includes('connect econnrefused'))
   )
 }
 
-/**
- * Called when an auth error is detected.
- * Re-reads .env so a freshly updated DATABASE_URL is picked up automatically —
- * no server restart required after updating the token.
- */
+// ─── Token rotation (local dev only) ─────────────────────────────────────────
+// Called when a Lakebase OAuth token expires. Re-reads .env so the new
+// DATABASE_URL is picked up without a server restart.
+// On Cloud Run, rotate tokens via Cloud Run environment variable updates instead.
+
 export function refreshPool(): void {
   void pool.end().catch(() => {})
-  loadEnv()
-  pool = createPool()
-  pool.on('error', (err) => {
-    console.error('[db] Pool error (after refresh):', err.message)
+  // In development: re-read .env so a new Lakebase token in the file is picked up
+  // without restarting the server. On Cloud Run, env vars are already live in
+  // process.env — no .env file exists there, so this call would be a no-op anyway,
+  // but skip it explicitly to avoid confusion.
+  if (config.env === 'development') reloadLocalEnv()
+  const newUrl = process.env.DATABASE_URL ?? config.database.url
+  pool = new Pool({
+    connectionString:        newUrl,
+    ssl:                     config.database.ssl,
+    max:                     config.database.max,
+    idleTimeoutMillis:       config.database.idleTimeoutMs,
+    connectionTimeoutMillis: config.database.connectionTimeoutMs,
   })
-  console.log('[db] Pool refreshed — DATABASE_URL reloaded from .env')
+  pool.on('error', (err) => {
+    if (config.env === 'production') {
+      process.stdout.write(JSON.stringify({ level: 'error', msg: 'db_pool_error', error: err.message, ts: new Date().toISOString() }) + '\n')
+    } else {
+      console.error('[db] Pool error (after refresh):', err.message)
+    }
+  })
+  if (config.env === 'production') {
+    process.stdout.write(JSON.stringify({ level: 'info', msg: 'db_pool_refreshed', ts: new Date().toISOString() }) + '\n')
+  } else {
+    console.log('[db] Pool refreshed — DATABASE_URL reloaded from .env')
+  }
 }
 
-// Thin timing wrapper — logs queries that take more than 400 ms.
-// Use this in repositories on hot-path queries so slow Lakebase calls are visible.
+// ─── Timed query wrapper ──────────────────────────────────────────────────────
+// Logs every query with its duration and row count.
+// Thresholds from config: warn > slowQueryMs (300ms), error > errorQueryMs (1000ms).
+
 export async function timedQuery<T extends object = Record<string, unknown>>(
-  label: string,
-  sql: string,
-  params?: unknown[],
+  label:    string,
+  sql:      string,
+  params?:  unknown[],
+  meta?:    { endpoint?: string },
 ): Promise<import('pg').QueryResult<T>> {
-  const t0 = Date.now()
+  const t0     = Date.now()
   const result = await pool.query<T>(sql, params)
-  const ms = Date.now() - t0
-  if (ms > 400) console.warn('[db slow %dms] %s', ms, label)
+  const ms     = Date.now() - t0
+  const rows   = result.rowCount ?? 0
+  const ep     = meta?.endpoint ? ` [${meta.endpoint}]` : ''
+  const slow   = config.logging.slowQueryMs
+  const err    = config.logging.errorQueryMs
+
+  if (ms >= err) {
+    console.error(`[db] ⛔ ${ms}ms${ep} "${label}" → ${rows} rows`)
+  } else if (ms >= slow) {
+    console.warn(`[db] ⚠  ${ms}ms${ep} "${label}" → ${rows} rows`)
+  } else if (config.env === 'development') {
+    console.log(`[db]    ${ms}ms${ep} "${label}" → ${rows} rows`)
+  }
+
   return result
 }

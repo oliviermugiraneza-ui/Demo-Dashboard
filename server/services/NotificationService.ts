@@ -1,6 +1,7 @@
 import os from 'os'
 import { pool } from '../db.js'
 import { DEMO_STATUS } from '../lib/demoStatus.js'
+import { config } from '../config/index.js'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -103,9 +104,9 @@ class GmailApiProvider implements EmailProvider {
       method:  'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body:    new URLSearchParams({
-        client_id:     process.env.GOOGLE_CLIENT_ID     ?? '',
-        client_secret: process.env.GOOGLE_CLIENT_SECRET ?? '',
-        refresh_token: process.env.GOOGLE_REFRESH_TOKEN ?? '',
+        client_id:     config.gmail.clientId,
+        client_secret: config.gmail.clientSecret,
+        refresh_token: config.gmail.refreshToken,
         grant_type:    'refresh_token',
       }),
       signal: AbortSignal.timeout(10_000),
@@ -126,7 +127,7 @@ class GmailApiProvider implements EmailProvider {
   }
 
   private buildRaw(to: string, subject: string, htmlBody: string): string {
-    const from = process.env.EMAIL_FROM ?? ''
+    const from = config.gmail.emailFrom
 
     // RFC 2047 encode subject if it contains non-ASCII (e.g. em-dash)
     const subjectEncoded = /[^\x00-\x7F]/.test(subject)
@@ -201,9 +202,9 @@ class GmailApiProvider implements EmailProvider {
       return { success: true }
     }
 
-    const clientId     = process.env.GOOGLE_CLIENT_ID
-    const clientSecret = process.env.GOOGLE_CLIENT_SECRET
-    const refreshToken = process.env.GOOGLE_REFRESH_TOKEN
+    const clientId     = config.gmail.clientId
+    const clientSecret = config.gmail.clientSecret
+    const refreshToken = config.gmail.refreshToken
 
     if (!clientId || !clientSecret || !refreshToken) {
       console.warn(
@@ -228,8 +229,8 @@ class GmailApiProvider implements EmailProvider {
 
 // ─── Config helpers ───────────────────────────────────────────────────────────
 
-function isEnabled(): boolean { return process.env.NOTIFICATIONS_ENABLED !== 'false' }
-function isDryRun(): boolean  { return process.env.NOTIFICATION_DRY_RUN  === 'true' }
+function isEnabled(): boolean { return config.notifications.enabled }
+function isDryRun(): boolean  { return config.notifications.dryRun  }
 function getEmailProvider(): EmailProvider { return new GmailApiProvider() }
 
 // ─── Log writer ───────────────────────────────────────────────────────────────
@@ -586,10 +587,10 @@ export class NotificationService {
       enabled:                    isEnabled(),
       dryRun:                     isDryRun(),
       provider:                   'gmail_api',
-      gmailClientConfigured:      Boolean(process.env.GOOGLE_CLIENT_ID) && Boolean(process.env.GOOGLE_CLIENT_SECRET),
-      gmailRefreshTokenConfigured: Boolean(process.env.GOOGLE_REFRESH_TOKEN),
-      emailFromConfigured:        Boolean(process.env.EMAIL_FROM),
-      slackConfigured:            Boolean(process.env.SLACK_WEBHOOK_URL),
+      gmailClientConfigured:       Boolean(config.gmail.clientId) && Boolean(config.gmail.clientSecret),
+      gmailRefreshTokenConfigured: Boolean(config.gmail.refreshToken),
+      emailFromConfigured:         Boolean(config.gmail.emailFrom),
+      slackConfigured:             false,
     }
   }
 

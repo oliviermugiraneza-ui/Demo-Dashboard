@@ -19,6 +19,7 @@ import {
   Bell,
   Layers,
   BellRing,
+  Cpu,
 } from 'lucide-react'
 
 // ─── Nav Config ───────────────────────────────────────────────────────────────
@@ -57,6 +58,7 @@ const PAGE_SUBTITLES: Record<string, string> = {
   '/cost':                   'Budget & cost tracking',
   '/demo-request':           'Submit and track your requests',
   '/admin':                  'System configuration',
+  '/model':                  'Model performance review',
   '/settings/notifications': 'Test and monitor notification channels',
 }
 
@@ -185,6 +187,26 @@ export default function AppShell({ children, pageTitle }: AppShellProps) {
                   {!collapsed && <span className="text-sm font-medium truncate">Admin</span>}
                   {adminActive && !collapsed && <span className="ml-auto w-1.5 h-5 rounded-full bg-[#2563EB]" />}
                 </Link>
+
+                {/* Model */}
+                {(() => {
+                  const modelActive = location.pathname.startsWith('/model')
+                  return (
+                    <Link
+                      to="/model"
+                      title={collapsed ? 'Model' : undefined}
+                      className={[
+                        'flex items-center gap-3 rounded-xl mb-0.5 transition-all duration-150',
+                        collapsed ? 'justify-center px-0 py-2.5' : 'px-3 py-2.5',
+                        modelActive ? 'bg-blue-50 text-[#2563EB]' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900',
+                      ].join(' ')}
+                    >
+                      <span className="flex-shrink-0"><Cpu size={18} /></span>
+                      {!collapsed && <span className="text-sm font-medium truncate">Model</span>}
+                      {modelActive && !collapsed && <span className="ml-auto w-1.5 h-5 rounded-full bg-[#2563EB]" />}
+                    </Link>
+                  )
+                })()}
 
                 {/* Tracker + Cost */}
                 {SECONDARY_NAV_ITEMS.map(item => {

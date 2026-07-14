@@ -13,6 +13,7 @@ import DemoRequestPage  from './pages/DemoRequestPage'
 import AdminConfigPage     from './pages/AdminConfigPage'
 import BacklogPage         from './pages/BacklogPage'
 import NotificationsPage   from './pages/NotificationsPage'
+import ModelPage           from './pages/ModelPage'
 
 const PAGE_TITLES: Record<string, string> = {
   '/home':                    'HOME',
@@ -26,6 +27,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/demo-request':            'REQUEST',
   '/admin':                   'ADMIN',
   '/settings/notifications':  'NOTIFICATIONS',
+  '/model':                   'MODEL',
 }
 
 function AppContent() {
@@ -51,6 +53,7 @@ function AppContent() {
         <Route path="/cost"           element={<CostPage />} />
         <Route path="/demo-request/*"          element={<DemoRequestPage />} />
         <Route path="/admin"                   element={<AdminConfigPage />} />
+        <Route path="/model"                   element={<ModelPage />} />
         <Route path="/settings/notifications"  element={<NotificationsPage />} />
       </Routes>
     </AppShell>

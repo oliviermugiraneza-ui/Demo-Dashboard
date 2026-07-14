@@ -1,6 +1,9 @@
+// config MUST be imported first — it loads dotenv before any other module
+import { config, activeProfile, activeEnvFile } from './config/index.js'
 import express, { type Response } from 'express'
-import cors from 'cors'
+import cors   from 'cors'
 import { pool, isAuthError, isConnError, refreshPool } from './db.js'
+import { refCache } from './cache.js'
 import { DemoService } from './services/DemoService.js'
 import { DEMO_STATUS } from './lib/demoStatus.js'
 import { DemoReferenceService } from './services/DemoReferenceService.js'
@@ -11,30 +14,120 @@ import { GoogleCalendarService } from './services/GoogleCalendarService.js'
 import { PostDemoService } from './services/PostDemoService.js'
 import type { QueryOptions, CreateDemoInput } from './types.js'
 import type { BacklogInput } from './repositories/BacklogRepository.js'
-import type { PostDemoInput, PostDemoQueryOptions } from './repositories/PostDemoRepository.js'
+import type { PostDemoInput, PostDemoQueryOptions, PostDemoRow } from './repositories/PostDemoRepository.js'
+
+// ─── Module-level diagnostics state ──────────────────────────────────────────
+// Tracks the active route; updated by request middleware.
+
+let _activeRoute = 'startup'
+
+// ─── Process-level crash diagnostics ─────────────────────────────────────────
+// uncaughtExceptionMonitor: diagnostic only — fires before any crash handler,
+//   cannot prevent the crash, does not need to call process.exit().
+// unhandledRejection: logs context for diagnosis. In Node 15+, an unregistered
+//   unhandledRejection causes process exit; registering a listener here gives us
+//   a chance to log before the runtime terminates.
+//   NOTE: this handler must NOT perform async cleanup — cleanup is the job of
+//   the SIGTERM/SIGINT handlers. Doing cleanup here risks double-close conflicts.
+
+process.on('uncaughtExceptionMonitor', (err, origin) => {
+  const ts = new Date().toISOString()
+  process.stderr.write(
+    `\n[CRASH] ${ts} | ${origin}\n` +
+    `[CRASH] active route : ${_activeRoute}\n` +
+    `[CRASH] error        :\n${err instanceof Error ? err.stack : String(err)}\n`,
+  )
+})
+
+process.on('unhandledRejection', (reason, _promise) => {
+  const ts = new Date().toISOString()
+  process.stderr.write(
+    `\n[CRASH] ${ts} | unhandledRejection\n` +
+    `[CRASH] active route : ${_activeRoute}\n` +
+    `[CRASH] reason       :\n${reason instanceof Error ? reason.stack : String(reason)}\n`,
+  )
+  // Log only — do not call process.exit() or attempt cleanup here.
+  // If this is a real crash the runtime will terminate after all
+  // unhandledRejection listeners return (Node 15+ default).
+  // If this is a spurious rejection during shutdown the cleanup path
+  // (SIGTERM handler) is already running and owns the shutdown sequence.
+})
+
+// ─── Parallel query helper ────────────────────────────────────────────────────
+// Promise.all() leaves secondary rejections unhandled when the first rejects.
+// In Node 15+, an unhandled rejection crashes the process.
+// allOrThrow() waits for ALL promises to settle, then rethrows the first failure.
+// This prevents secondary rejections from reaching the unhandledRejection handler
+// while still propagating the original error to the route's try/catch.
+
+async function allOrThrow<T extends readonly unknown[]>(
+  promises: { [K in keyof T]: Promise<T[K]> },
+): Promise<T> {
+  const settled = await Promise.allSettled(promises)
+  const firstFail = settled.find(r => r.status === 'rejected') as PromiseRejectedResult | undefined
+  if (firstFail) throw firstFail.reason
+  return settled.map(r => (r as PromiseFulfilledResult<unknown>).value) as unknown as T
+}
 
 const app = express()
-const PORT = Number(process.env.API_PORT ?? 3001)
 
-app.use(cors({ origin: ['http://localhost:5173', 'http://127.0.0.1:5173'] }))
+// CORS — dev: localhost only; prod: Firebase Hosting domains from ALLOWED_ORIGINS
+app.use(cors({ origin: config.cors.allowedOrigins }))
 app.use(express.json())
 
-// ─── Request timing middleware ────────────────────────────────────────────────
+// ─── Request timing + route logging middleware ────────────────────────────────
 
 app.use((req, res, next) => {
-  const t0 = Date.now()
+  const t0    = Date.now()
+  const route = `${req.method} ${req.path}`
+  _activeRoute = route
+
+  if (config.env === 'development') {
+    console.log(`[route] START ${route}`)
+  }
+
   res.on('finish', () => {
-    const ms = Date.now() - t0
-    const slow = ms > 800 ? ' ⚠ SLOW' : ''
-    console.log('[api] %s %s → %dms %d%s', req.method, req.path, ms, res.statusCode, slow)
+    const ms   = Date.now() - t0
+    const slow = ms >= config.logging.slowRequestMs
+    const fail = res.statusCode >= 400
+
+    if (config.env === 'production') {
+      // Cloud Logging: only emit a log entry for slow or failed requests.
+      // Normal 200s are already captured by the Cloud Run request log.
+      if (slow || fail) {
+        process.stdout.write(JSON.stringify({
+          level:  fail ? 'error' : 'warn',
+          msg:    route,
+          ms,
+          status: res.statusCode,
+          ts:     new Date().toISOString(),
+        }) + '\n')
+      }
+    } else {
+      const tag = fail ? ' ✗ FAILED' : slow ? ' ⚠ SLOW' : ''
+      console.log(`[route] END   ${route} → ${res.statusCode} (${ms}ms)${tag}`)
+    }
   })
+
   next()
 })
 
 // ─── Centralised DB error handler ────────────────────────────────────────────
 
 function handleDbError(err: unknown, res: Response): void {
-  console.error('[api] DB error:', String(err))
+  if (config.env === 'production') {
+    process.stdout.write(JSON.stringify({
+      level:  'error',
+      msg:    'route_error',
+      route:  _activeRoute,
+      error:  err instanceof Error ? err.message : String(err),
+      stack:  err instanceof Error ? err.stack    : undefined,
+      ts:     new Date().toISOString(),
+    }) + '\n')
+  } else {
+    const stack = err instanceof Error ? (err.stack ?? String(err)) : String(err)
+    console.error(`\n[route] FAILED ${_activeRoute}\n[route] ${new Date().toISOString()}\n[route] ${stack}`)
+  }
 
   if (isAuthError(err)) {
     // Reload .env so the next request picks up a new token if the user has updated it
@@ -115,9 +208,9 @@ app.get('/api/demos', async (req, res) => {
 app.post('/api/demos', async (req, res) => {
   try {
     const body = req.body as CreateDemoInput
-    console.log('[demos] POST payload:', JSON.stringify(body))
+    if (config.env === 'development') console.log('[demos] POST payload:', JSON.stringify(body))
     const newId = await DemoService.createDemo(body)
-    console.log('[demos] created id=%d (demo_ref=null, status=NEED REVIEW)', newId)
+    if (config.env === 'development') console.log('[demos] created id=%d', newId)
     res.status(201).json({ ok: true, id: newId, demo_ref: null })
 
     // Fire demo_created notification — never blocks the request
@@ -127,9 +220,11 @@ app.post('/api/demos', async (req, res) => {
         .catch(err => console.error('[notifications] demo_created non-fatal:', String(err)))
     }
   } catch (err) {
-    const e = err as Error
-    console.error('[demos] POST error — payload:', JSON.stringify(req.body))
-    console.error('[demos] POST error:', e.message, e.stack)
+    if (config.env === 'development') {
+      const e = err as Error
+      console.error('[demos] POST error — payload:', JSON.stringify(req.body))
+      console.error('[demos] POST error:', e.message, e.stack)
+    }
     handleDbError(err, res)
   }
 })
@@ -143,12 +238,16 @@ app.get('/api/demos/resolve-ref/:ref', async (req, res) => {
     res.status(400).json({ ok: false, error: 'Invalid demo reference format. Expected: GEO-YYMMDD-SEQ (e.g. JP-260704-01)' })
     return
   }
-  const demoId = await DemoReferenceService.resolve(ref)
-  if (!demoId) {
-    res.status(404).json({ ok: false, error: `No demo found with reference ${ref}` })
-    return
+  try {
+    const demoId = await DemoReferenceService.resolve(ref)
+    if (!demoId) {
+      res.status(404).json({ ok: false, error: `No demo found with reference ${ref}` })
+      return
+    }
+    res.json({ ok: true, demo_id: demoId, demo_ref: ref })
+  } catch (err) {
+    handleDbError(err, res)
   }
-  res.json({ ok: true, demo_id: demoId, demo_ref: ref })
 })
 
 // ─── Demos — GET /api/demos/search-ref?geo=JP&dateCode=260704 ─────────────────
@@ -207,14 +306,19 @@ app.get('/api/demos/search-ref', async (req, res) => {
 
 app.get('/api/admin/operators', async (req, res) => {
   const { geo } = req.query as { geo?: string }
+  const cacheKey = `operators:${geo?.toUpperCase() ?? '*'}`
   try {
+    type Row = { id: string; full_name: string; email: string; geo: string }
+    const cached = refCache.get<Row[]>(cacheKey)
+    if (cached) { res.json({ ok: true, data: cached }); return }
     const params: unknown[] = []
     const conditions: string[] = []
     if (geo) { params.push(geo.toUpperCase()); conditions.push(`UPPER(TRIM(geo)) = $${params.length}`) }
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
-    const result = await pool.query<{ id: string; full_name: string; email: string; geo: string }>(
+    const result = await pool.query<Row>(
       `SELECT id, full_name, email, geo FROM public.operators ${where} ORDER BY full_name`, params,
     )
+    refCache.set(cacheKey, result.rows)
     res.json({ ok: true, data: result.rows })
   } catch (err) { handleDbError(err, res) }
 })
@@ -229,6 +333,7 @@ app.post('/api/admin/operators', async (req, res) => {
       `INSERT INTO public.operators (full_name, email, geo, role) VALUES ($1,$2,$3,'Operator') RETURNING id`,
       [full_name.trim(), email.trim().toLowerCase(), geo.toUpperCase()],
     )
+    refCache.invalidatePrefix('operators')
     res.status(201).json({ ok: true, id: Number(r.rows[0]!.id) })
   } catch (err) {
     if ((err as { code?: string }).code === '23505') { res.status(409).json({ ok: false, error: 'Email already exists' }); return }
@@ -248,6 +353,7 @@ app.put('/api/admin/operators/:id', async (req, res) => {
     if (!sets.length) { res.status(400).json({ ok: false, error: 'Nothing to update' }); return }
     params.push(id)
     await pool.query(`UPDATE public.operators SET ${sets.join(',')},updated_at=NOW() WHERE id=$${params.length}`, params)
+    refCache.invalidatePrefix('operators')
     res.json({ ok: true })
   } catch (err) { handleDbError(err, res) }
 })
@@ -257,6 +363,7 @@ app.delete('/api/admin/operators/:id', async (req, res) => {
     const id = Number(req.params.id)
     if (!id) { res.status(400).json({ ok: false, error: 'Invalid id' }); return }
     await pool.query('DELETE FROM public.operators WHERE id=$1', [id])
+    refCache.invalidatePrefix('operators')
     res.json({ ok: true })
   } catch (err) { handleDbError(err, res) }
 })
@@ -264,12 +371,16 @@ app.delete('/api/admin/operators/:id', async (req, res) => {
 // ─── Admin — Hosts CRUD /api/admin/hosts ─────────────────────────────────────
 
 app.get('/api/admin/hosts', async (req, res) => {
+  const { geo } = req.query as { geo?: string }
+  const cacheKey = `hosts:${geo?.toUpperCase() ?? '*'}`
   try {
-    const { geo } = req.query as { geo?: string }
+    const cached = refCache.get<object[]>(cacheKey)
+    if (cached) { res.json({ ok: true, data: cached }); return }
     const params: unknown[] = []; const conditions: string[] = []
     if (geo) { params.push(geo.toUpperCase()); conditions.push(`UPPER(TRIM(geo))=$${params.length}`) }
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
     const r = await pool.query(`SELECT id,full_name,email,geo,role FROM public.hosts ${where} ORDER BY full_name`, params)
+    refCache.set(cacheKey, r.rows)
     res.json({ ok: true, data: r.rows })
   } catch (err) { handleDbError(err, res) }
 })
@@ -284,6 +395,7 @@ app.post('/api/admin/hosts', async (req, res) => {
       `INSERT INTO public.hosts (full_name,email,geo,role) VALUES ($1,$2,$3,'Host') RETURNING id`,
       [full_name.trim(), email.trim().toLowerCase(), geo.toUpperCase()],
     )
+    refCache.invalidatePrefix('hosts')
     res.status(201).json({ ok: true, id: Number(r.rows[0]!.id) })
   } catch (err) {
     if ((err as { code?: string }).code === '23505') { res.status(409).json({ ok: false, error: 'Email already exists' }); return }
@@ -303,6 +415,7 @@ app.put('/api/admin/hosts/:id', async (req, res) => {
     if (!sets.length) { res.status(400).json({ ok: false, error: 'Nothing to update' }); return }
     params.push(id)
     await pool.query(`UPDATE public.hosts SET ${sets.join(',')},updated_at=NOW() WHERE id=$${params.length}`, params)
+    refCache.invalidatePrefix('hosts')
     res.json({ ok: true })
   } catch (err) { handleDbError(err, res) }
 })
@@ -311,6 +424,7 @@ app.delete('/api/admin/hosts/:id', async (req, res) => {
   try {
     const id = Number(req.params.id); if (!id) { res.status(400).json({ ok: false, error: 'Invalid id' }); return }
     await pool.query('DELETE FROM public.hosts WHERE id=$1', [id])
+    refCache.invalidatePrefix('hosts')
     res.json({ ok: true })
   } catch (err) { handleDbError(err, res) }
 })
@@ -318,12 +432,16 @@ app.delete('/api/admin/hosts/:id', async (req, res) => {
 // ─── Admin — Models CRUD /api/admin/models ────────────────────────────────────
 
 app.get('/api/admin/models', async (req, res) => {
+  const { geo } = req.query as { geo?: string }
+  const cacheKey = `models:${geo?.toUpperCase() ?? '*'}`
   try {
-    const { geo } = req.query as { geo?: string }
+    const cached = refCache.get<object[]>(cacheKey)
+    if (cached) { res.json({ ok: true, data: cached }); return }
     const params: unknown[] = []; const conditions: string[] = []
     if (geo) { params.push(geo.toUpperCase()); conditions.push(`UPPER(TRIM(geo))=$${params.length}`) }
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
     const r = await pool.query(`SELECT id,model_name,platform,baseline_tag,geo FROM public.models ${where} ORDER BY model_name`, params)
+    refCache.set(cacheKey, r.rows)
     res.json({ ok: true, data: r.rows })
   } catch (err) { handleDbError(err, res) }
 })
@@ -338,6 +456,7 @@ app.post('/api/admin/models', async (req, res) => {
       `INSERT INTO public.models (model_name,platform,baseline_tag,geo) VALUES ($1,$2,$3,$4) RETURNING id`,
       [String(model_name).trim(), String(platform || 'dGPU'), baseline_tag === true || baseline_tag === 'true', String(geo).toUpperCase()],
     )
+    refCache.invalidatePrefix('models')
     res.status(201).json({ ok: true, id: Number(r.rows[0]!.id) })
   } catch (err) { handleDbError(err, res) }
 })
@@ -354,6 +473,7 @@ app.put('/api/admin/models/:id', async (req, res) => {
     if (!sets.length) { res.status(400).json({ ok: false, error: 'Nothing to update' }); return }
     params.push(id)
     await pool.query(`UPDATE public.models SET ${sets.join(',')},updated_at=NOW() WHERE id=$${params.length}`, params)
+    refCache.invalidatePrefix('models')
     res.json({ ok: true })
   } catch (err) { handleDbError(err, res) }
 })
@@ -362,6 +482,7 @@ app.delete('/api/admin/models/:id', async (req, res) => {
   try {
     const id = Number(req.params.id); if (!id) { res.status(400).json({ ok: false, error: 'Invalid id' }); return }
     await pool.query('DELETE FROM public.models WHERE id=$1', [id])
+    refCache.invalidatePrefix('models')
     res.json({ ok: true })
   } catch (err) { handleDbError(err, res) }
 })
@@ -369,12 +490,16 @@ app.delete('/api/admin/models/:id', async (req, res) => {
 // ─── Admin — Routes CRUD /api/admin/routes ────────────────────────────────────
 
 app.get('/api/admin/routes', async (req, res) => {
+  const { geo } = req.query as { geo?: string }
+  const cacheKey = `routes:${geo?.toUpperCase() ?? '*'}`
   try {
-    const { geo } = req.query as { geo?: string }
+    const cached = refCache.get<object[]>(cacheKey)
+    if (cached) { res.json({ ok: true, data: cached }); return }
     const params: unknown[] = []; const conditions: string[] = []
     if (geo) { params.push(geo.toUpperCase()); conditions.push(`UPPER(TRIM(geo))=$${params.length}`) }
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
     const r = await pool.query(`SELECT id,route_name,console_link,geo FROM public.routes ${where} ORDER BY route_name`, params)
+    refCache.set(cacheKey, r.rows)
     res.json({ ok: true, data: r.rows })
   } catch (err) { handleDbError(err, res) }
 })
@@ -389,6 +514,7 @@ app.post('/api/admin/routes', async (req, res) => {
       `INSERT INTO public.routes (route_name,console_link,geo) VALUES ($1,$2,$3) RETURNING id`,
       [route_name.trim(), console_link?.trim() || null, geo.toUpperCase()],
     )
+    refCache.invalidatePrefix('routes')
     res.status(201).json({ ok: true, id: Number(r.rows[0]!.id) })
   } catch (err) { handleDbError(err, res) }
 })
@@ -404,6 +530,7 @@ app.put('/api/admin/routes/:id', async (req, res) => {
     if (!sets.length) { res.status(400).json({ ok: false, error: 'Nothing to update' }); return }
     params.push(id)
     await pool.query(`UPDATE public.routes SET ${sets.join(',')},updated_at=NOW() WHERE id=$${params.length}`, params)
+    refCache.invalidatePrefix('routes')
     res.json({ ok: true })
   } catch (err) { handleDbError(err, res) }
 })
@@ -412,6 +539,7 @@ app.delete('/api/admin/routes/:id', async (req, res) => {
   try {
     const id = Number(req.params.id); if (!id) { res.status(400).json({ ok: false, error: 'Invalid id' }); return }
     await pool.query('DELETE FROM public.routes WHERE id=$1', [id])
+    refCache.invalidatePrefix('routes')
     res.json({ ok: true })
   } catch (err) { handleDbError(err, res) }
 })
@@ -419,12 +547,16 @@ app.delete('/api/admin/routes/:id', async (req, res) => {
 // ─── Admin — Vehicles CRUD /api/admin/vehicles ────────────────────────────────
 
 app.get('/api/admin/vehicles', async (req, res) => {
+  const { geo } = req.query as { geo?: string }
+  const cacheKey = `vehicles:${geo?.toUpperCase() ?? '*'}`
   try {
-    const { geo } = req.query as { geo?: string }
+    const cached = refCache.get<object[]>(cacheKey)
+    if (cached) { res.json({ ok: true, data: cached }); return }
     const params: unknown[] = []; const conditions: string[] = []
     if (geo) { params.push(geo.toUpperCase()); conditions.push(`UPPER(TRIM(geo))=$${params.length}`) }
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
     const r = await pool.query(`SELECT id,vehicle_id,vehicle_type,geo FROM public.vehicles ${where} ORDER BY vehicle_id`, params)
+    refCache.set(cacheKey, r.rows)
     res.json({ ok: true, data: r.rows })
   } catch (err) { handleDbError(err, res) }
 })
@@ -439,6 +571,7 @@ app.post('/api/admin/vehicles', async (req, res) => {
       `INSERT INTO public.vehicles (vehicle_id,vehicle_type,geo) VALUES ($1,$2,$3) RETURNING id`,
       [vehicle_id.trim().toUpperCase(), vehicle_type || 'Nvidia', geo.toUpperCase()],
     )
+    refCache.invalidatePrefix('vehicles')
     res.status(201).json({ ok: true, id: Number(r.rows[0]!.id) })
   } catch (err) {
     if ((err as { code?: string }).code === '23505') { res.status(409).json({ ok: false, error: 'Vehicle ID already exists' }); return }
@@ -457,6 +590,7 @@ app.put('/api/admin/vehicles/:id', async (req, res) => {
     if (!sets.length) { res.status(400).json({ ok: false, error: 'Nothing to update' }); return }
     params.push(id)
     await pool.query(`UPDATE public.vehicles SET ${sets.join(',')},updated_at=NOW() WHERE id=$${params.length}`, params)
+    refCache.invalidatePrefix('vehicles')
     res.json({ ok: true })
   } catch (err) { handleDbError(err, res) }
 })
@@ -465,6 +599,7 @@ app.delete('/api/admin/vehicles/:id', async (req, res) => {
   try {
     const id = Number(req.params.id); if (!id) { res.status(400).json({ ok: false, error: 'Invalid id' }); return }
     await pool.query('DELETE FROM public.vehicles WHERE id=$1', [id])
+    refCache.invalidatePrefix('vehicles')
     res.json({ ok: true })
   } catch (err) { handleDbError(err, res) }
 })
@@ -677,9 +812,10 @@ async function runAutoCompletion(): Promise<void> {
   }
 }
 
-// Run once at startup, then every 5 minutes
+// Run once at startup, then every 5 minutes.
+// Store the ref so shutdown() can clearInterval and let the event loop drain.
 void runAutoCompletion()
-setInterval(() => { void runAutoCompletion() }, 5 * 60 * 1_000)
+const _autoCompleteTimer = setInterval(() => { void runAutoCompletion() }, 5 * 60 * 1_000)
 
 // ─── Demos — PATCH /api/demos/:id/status ─────────────────────────────────────
 // Body: { "status": "NEED REVIEW" | "APPROVED" | "CANCELED" | "COMPLETED" }
@@ -727,7 +863,7 @@ app.patch('/api/demos/:id/status', async (req, res) => {
     if (status === DEMO_STATUS.APPROVED && before && !before.demo_ref) {
       try {
         approvedRef = await DemoReferenceService.generate(id, before.geo, before.date_of_demo)
-        console.log('[demos] APPROVED id=%d → demo_ref=%s', id, approvedRef ?? 'null')
+        if (config.env === 'development') console.log('[demos] APPROVED id=%d → demo_ref=%s', id, approvedRef ?? 'null')
       } catch (err) {
         console.error('[demo_ref] generate on approval error:', String(err))
       }
@@ -1154,23 +1290,26 @@ app.post('/api/notifications/test', async (req, res) => {
 })
 
 // ─── Schema introspection — GET /api/schema ───────────────────────────────────
-// Query param: table (default: demo_master_raw)
+// Development only: inspect column names and types for a given table.
+// Not registered in production — leaks schema info and has no runtime use.
 
-app.get('/api/schema', async (req, res) => {
-  try {
-    const table = String(req.query.table ?? 'demo_master_raw')
-    const result = await pool.query<{ column_name: string; data_type: string }>(
-      `SELECT column_name, data_type
-       FROM information_schema.columns
-       WHERE table_schema = 'public' AND table_name = $1
-       ORDER BY ordinal_position`,
-      [table],
-    )
-    res.json({ ok: true, table, columns: result.rows })
-  } catch (err) {
-    handleDbError(err, res)
-  }
-})
+if (config.env === 'development') {
+  app.get('/api/schema', async (req, res) => {
+    try {
+      const table = String(req.query.table ?? 'demo_master_raw')
+      const result = await pool.query<{ column_name: string; data_type: string }>(
+        `SELECT column_name, data_type
+         FROM information_schema.columns
+         WHERE table_schema = 'public' AND table_name = $1
+         ORDER BY ordinal_position`,
+        [table],
+      )
+      res.json({ ok: true, table, columns: result.rows })
+    } catch (err) {
+      handleDbError(err, res)
+    }
+  })
+}
 
 // ─── Post Demo — analytics (MUST come before /:id to avoid shadowing) ─────────
 
@@ -1356,7 +1495,7 @@ app.get('/api/home', async (req, res) => {
     const [
       proposedRes, pendingRes, approvedRes, cancelledRes,
       guestsRes, geoBreakRes, upcomingRes, recentRes,
-    ] = await Promise.all([
+    ] = await allOrThrow([
       // KPI: Proposed — backlog items within timeframe
       pool.query<{ count: string }>(
         `SELECT COUNT(*)::text AS count FROM public.demo_backlog
@@ -1547,16 +1686,461 @@ app.get('/api/demos/tracker', async (req, res) => {
   } catch (err) { handleDbError(err, res) }
 })
 
-// ─── Start ────────────────────────────────────────────────────────────────────
+// ─── Model Analytics ─────────────────────────────────────────────────────────
+// GET /api/model-analytics/list           — all known model names
+// GET /api/model-analytics/compare        — side-by-side comparison (BEFORE /:modelName)
+// GET /api/model-analytics/:modelName     — full analytics for one model
 
-app.listen(PORT, () => {
-  console.log(`\n  API server           ->  http://localhost:${PORT}`)
-  console.log(`  Health               ->  http://localhost:${PORT}/api/health`)
-  console.log(`  Demos                ->  http://localhost:${PORT}/api/demos`)
-  console.log(`  Satisfaction         ->  http://localhost:${PORT}/api/satisfaction`)
-  console.log(`  Notifications config ->  http://localhost:${PORT}/api/notifications/config`)
-  console.log(`  Notifications log    ->  http://localhost:${PORT}/api/notifications/log`)
-  console.log(`  Schema (demos)       ->  http://localhost:${PORT}/api/schema`)
-  console.log(`  Schema (satisf.)     ->  http://localhost:${PORT}/api/schema?table=satisfaction\n`)
+type ComparisonDir = 'higher' | 'lower' | 'neutral'
+
+type ComparisonRow = {
+  parameter:   string
+  modelAValue: string | number | null
+  modelBValue: string | number | null
+  common?:     boolean
+  scA?:        boolean
+  scB?:        boolean
+  direction:   ComparisonDir
+}
+
+type ComparisonGroup = {
+  title: string
+  rows:  ComparisonRow[]
+}
+
+type ModelComparisonResult = {
+  topRows: ComparisonRow[]
+  groups:  ComparisonGroup[]
+}
+
+type ModelAnalyticsData = {
+  modelName:            string
+  platform:             string | null
+  runCount:             number
+  avgSafety:            number | null
+  avgComfort:           number | null
+  avgDecisiveness:      number | null
+  avgAggressiveness:    number | null
+  avgSmoothness:        number | null
+  avgBehaviourRating:   number | null
+  scRunCount:           number
+  dilcUse:              number | null
+  totalInterventions:   number
+  behaviourCounts:      Record<string, number>
+  ratingDistribution:   Array<{ bucket: string; count: number }>
+  interventionBreakdown: Array<{ name: string; total_count: number; any_sc: boolean }>
+  feedbackReports:      PostDemoRow[]
+}
+
+const MODEL_RATING_BUCKETS = [
+  { bucket: 'Excellent',      min: 8 },
+  { bucket: 'Good',           min: 7 },
+  { bucket: 'Average',        min: 5 },
+  { bucket: 'Poor',           min: 3 },
+  { bucket: 'Unsatisfactory', min: 0 },
+]
+
+async function buildModelAnalytics(modelName: string): Promise<ModelAnalyticsData> {
+  const [statsSettled, feedbackSettled, platformSettled] = await Promise.allSettled([
+    pool.query<{
+      run_count:          string
+      avg_safety:         string | null
+      avg_comfort:        string | null
+      avg_decisiveness:   string | null
+      avg_aggressiveness: string | null
+      avg_smoothness:     string | null
+      sc_run_count:       string
+    }>(`
+      SELECT
+        COUNT(*)::text                                        AS run_count,
+        ROUND(AVG(safety_score)::numeric, 2)::text           AS avg_safety,
+        ROUND(AVG(comfort_score)::numeric, 2)::text          AS avg_comfort,
+        ROUND(AVG(decisiveness_score)::numeric, 2)::text     AS avg_decisiveness,
+        ROUND(AVG(aggressiveness_score)::numeric, 2)::text   AS avg_aggressiveness,
+        ROUND(AVG(smoothness_score)::numeric, 2)::text       AS avg_smoothness,
+        SUM(CASE WHEN safety_critical = true THEN 1 ELSE 0 END)::text AS sc_run_count
+      FROM public.post_demo
+      WHERE model_name = $1
+    `, [modelName]),
+    PostDemoService.getAll({ modelName, limit: 500 }),
+    pool.query<{ platform: string | null }>(
+      `SELECT platform FROM public.models WHERE model_name = $1 LIMIT 1`, [modelName],
+    ),
+  ])
+  if (statsSettled.status    === 'rejected') throw statsSettled.reason
+  if (feedbackSettled.status === 'rejected') throw feedbackSettled.reason
+  if (platformSettled.status === 'rejected') throw platformSettled.reason
+  const statsRes       = statsSettled.value
+  const feedbackResult = feedbackSettled.value
+  const platformRes    = platformSettled.value
+
+  const s        = statsRes.rows[0]
+  const toN      = (v: string | null | undefined) => (v != null && v !== '' ? parseFloat(v) : null)
+  const platform = platformRes.rows[0]?.platform ?? null
+
+  // Compute JS-side derived metrics from the fetched rows
+  const rows = feedbackResult.data
+  let behaviourSum = 0; let behaviourCount = 0
+  let totalInterventions = 0
+  const bucketMap:     Map<string, number>                        = new Map()
+  const invMap:        Map<string, { total: number; anySc: boolean }> = new Map()
+  const behaviourCounts: Record<string, number>                   = {}
+
+  for (const row of rows) {
+    // Avg behaviour rating (safety + comfort + decisiveness only, all 1–10)
+    const scoreVals = [row.safety_score, row.comfort_score, row.decisiveness_score].filter(v => v != null) as number[]
+    if (scoreVals.length > 0) {
+      const avg = scoreVals.reduce((a, b) => a + b, 0) / scoreVals.length
+      behaviourSum += avg
+      behaviourCount++
+      const bucket = MODEL_RATING_BUCKETS.find(b => avg >= b.min)?.bucket ?? 'Unsatisfactory'
+      bucketMap.set(bucket, (bucketMap.get(bucket) ?? 0) + 1)
+    }
+
+    // Behaviour counts from model_behaviours string array
+    if (row.model_behaviours) {
+      for (const beh of row.model_behaviours) {
+        if (beh && beh.trim()) behaviourCounts[beh] = (behaviourCounts[beh] ?? 0) + 1
+      }
+    }
+
+    // Interventions — handle both flat-number and {count,safetyCritical} JSONB
+    if (row.interventions) {
+      for (const [key, rawVal] of Object.entries(row.interventions)) {
+        const v = rawVal as unknown
+        const parsed = (typeof v === 'number')
+          ? { count: v, safetyCritical: false }
+          : { count: ((v as Record<string, unknown>).count as number) ?? 0,
+              safetyCritical: !!((v as Record<string, unknown>).safetyCritical) }
+        if (parsed.count <= 0) continue
+        const cur = invMap.get(key) ?? { total: 0, anySc: false }
+        invMap.set(key, { total: cur.total + parsed.count, anySc: cur.anySc || parsed.safetyCritical })
+        totalInterventions += parsed.count
+      }
+    }
+  }
+
+  const avgBehaviourRating = behaviourCount > 0
+    ? Math.round((behaviourSum / behaviourCount) * 100) / 100
+    : null
+
+  // TODO: connect to real DILC metric once the field is available in post_demo
+  const dilcUse: number | null = null
+
+  const ratingDistribution = MODEL_RATING_BUCKETS
+    .map(b => ({ bucket: b.bucket, count: bucketMap.get(b.bucket) ?? 0 }))
+    .filter(b => b.count > 0)
+
+  const interventionBreakdown = [...invMap.entries()]
+    .map(([name, { total, anySc }]) => ({ name, total_count: total, any_sc: anySc }))
+    .sort((a, b) => b.total_count - a.total_count)
+
+  return {
+    modelName,
+    platform,
+    runCount:           parseInt(s?.run_count ?? '0', 10),
+    avgSafety:          toN(s?.avg_safety),
+    avgComfort:         toN(s?.avg_comfort),
+    avgDecisiveness:    toN(s?.avg_decisiveness),
+    avgAggressiveness:  toN(s?.avg_aggressiveness),
+    avgSmoothness:      toN(s?.avg_smoothness),
+    avgBehaviourRating,
+    scRunCount:         parseInt(s?.sc_run_count ?? '0', 10),
+    dilcUse,
+    totalInterventions,
+    behaviourCounts,
+    ratingDistribution,
+    interventionBreakdown,
+    feedbackReports:    rows,
+  }
+}
+
+function buildComparison(a: ModelAnalyticsData, b: ModelAnalyticsData): ModelComparisonResult {
+  const topRows: ComparisonRow[] = [
+    { parameter: 'Platform',        modelAValue: a.platform   ?? '—', modelBValue: b.platform   ?? '—', direction: 'neutral' },
+    { parameter: 'Total Runs',      modelAValue: a.runCount,           modelBValue: b.runCount,           direction: 'neutral' },
+    { parameter: 'Safety Critical', modelAValue: a.scRunCount,         modelBValue: b.scRunCount,         direction: 'lower' },
+    { parameter: 'DILC use',        modelAValue: a.dilcUse,            modelBValue: b.dilcUse,            direction: 'neutral' },
+  ]
+
+  const performanceRows: ComparisonRow[] = [
+    { parameter: 'Avg Safety',         modelAValue: a.avgSafety,         modelBValue: b.avgSafety,         direction: 'higher' },
+    { parameter: 'Avg Decisiveness',   modelAValue: a.avgDecisiveness,   modelBValue: b.avgDecisiveness,   direction: 'higher' },
+    { parameter: 'Avg Aggressiveness', modelAValue: a.avgAggressiveness,  modelBValue: b.avgAggressiveness,  direction: 'lower' },
+    { parameter: 'Avg Smoothness',     modelAValue: a.avgSmoothness,     modelBValue: b.avgSmoothness,     direction: 'higher' },
+  ]
+
+  const allBehaviours = [...new Set([...Object.keys(a.behaviourCounts), ...Object.keys(b.behaviourCounts)])].sort()
+  const behaviourRows: ComparisonRow[] = allBehaviours.map(beh => ({
+    parameter:   beh,
+    modelAValue: a.behaviourCounts[beh] ?? 0,
+    modelBValue: b.behaviourCounts[beh] ?? 0,
+    common:      (a.behaviourCounts[beh] ?? 0) > 0 && (b.behaviourCounts[beh] ?? 0) > 0,
+    direction:   'neutral',
+  }))
+
+  const allInvNames = [...new Set([
+    ...a.interventionBreakdown.map(i => i.name),
+    ...b.interventionBreakdown.map(i => i.name),
+  ])].sort()
+  const interventionRows: ComparisonRow[] = allInvNames.map(name => {
+    const iA = a.interventionBreakdown.find(i => i.name === name)
+    const iB = b.interventionBreakdown.find(i => i.name === name)
+    return {
+      parameter:   name,
+      modelAValue: iA?.total_count ?? 0,
+      modelBValue: iB?.total_count ?? 0,
+      common:      (iA?.total_count ?? 0) > 0 && (iB?.total_count ?? 0) > 0,
+      scA:         iA?.any_sc ?? false,
+      scB:         iB?.any_sc ?? false,
+      direction:   'lower',
+    }
+  })
+
+  return {
+    topRows,
+    groups: [
+      { title: 'Performance',   rows: performanceRows },
+      { title: 'Behaviours',    rows: behaviourRows },
+      { title: 'Interventions', rows: interventionRows },
+    ],
+  }
+}
+
+app.get('/api/model-analytics/list', async (_req, res) => {
+  try {
+    const r = await pool.query<{ model_name: string }>(`
+      SELECT DISTINCT model_name
+      FROM (
+        SELECT model_name FROM public.models    WHERE model_name IS NOT NULL AND model_name <> ''
+        UNION
+        SELECT model_name FROM public.post_demo WHERE model_name IS NOT NULL AND model_name <> ''
+      ) combined
+      ORDER BY model_name
+    `)
+    res.json({ ok: true, data: r.rows.map(row => row.model_name) })
+  } catch (err) { handleDbError(err, res) }
 })
+
+app.get('/api/model-analytics/compare', async (req, res) => {
+  try {
+    const { modelA, modelB } = req.query as { modelA?: string; modelB?: string }
+    if (!modelA || !modelB) {
+      res.status(400).json({ ok: false, error: 'modelA and modelB are required' }); return
+    }
+    const [dataA, dataB] = await Promise.all([
+      buildModelAnalytics(String(modelA)),
+      buildModelAnalytics(String(modelB)),
+    ])
+    const comparison = buildComparison(dataA, dataB)
+    res.json({ ok: true, data: { modelA: dataA, modelB: dataB, comparison } })
+  } catch (err) { handleDbError(err, res) }
+})
+
+app.get('/api/model-analytics/:modelName', async (req, res) => {
+  try {
+    const modelName = decodeURIComponent(String(req.params.modelName))
+    const data = await buildModelAnalytics(modelName)
+    res.json({ ok: true, data })
+  } catch (err) { handleDbError(err, res) }
+})
+
+// ─── Express global error handler ────────────────────────────────────────────
+// Catches any error explicitly passed to next(err) from a route handler.
+// Note: Express 4 does NOT automatically forward unhandled async rejections —
+// those must either be caught inside the handler or hit the unhandledRejection
+// process handler above. The primary safety net is the try/catch in each route.
+
+app.use((err: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  const route = `${req.method} ${req.path}`
+  if (config.env === 'production') {
+    process.stdout.write(JSON.stringify({
+      level:  'error',
+      msg:    'unhandled_route_error',
+      route,
+      error:  err instanceof Error ? err.message : String(err),
+      stack:  err instanceof Error ? err.stack    : undefined,
+      ts:     new Date().toISOString(),
+    }) + '\n')
+  } else {
+    const stack = err instanceof Error ? (err.stack ?? String(err)) : String(err)
+    console.error(`\n[route] FAILED ${route}\n[route] ${new Date().toISOString()}\n[route] ${stack}`)
+  }
+  if (!res.headersSent) {
+    res.status(500).json({ ok: false, error: err instanceof Error ? err.message : String(err) })
+  }
+})
+
+// ─── Start + graceful shutdown ────────────────────────────────────────────────
+// Development: app.listen() on 0.0.0.0:3001 — Vite proxies /api → :3001
+// Production (Cloud Run): same code, PORT injected by Cloud Run (default 8080)
+// SIGTERM/SIGINT close the HTTP server then the DB pool gracefully.
+
+const { port, host } = config.server
+
+function dbLabel(): string {
+  try {
+    const url = new URL(config.database.url)
+    if (url.hostname.includes('databricks') || url.hostname.includes('azuredatabricks')) {
+      return `Lakebase (${url.hostname.split('.')[0]})`
+    }
+    if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
+      return `Local Postgres (${url.hostname}:${url.port || 5432})`
+    }
+    return url.hostname
+  } catch {
+    return config.database.url ? 'configured (parse error)' : '⚠ DATABASE_URL not set'
+  }
+}
+
+function logStartup(): void {
+  if (config.env === 'production') {
+    process.stdout.write(JSON.stringify({
+      level:   'info',
+      msg:     'server_started',
+      env:     config.env,
+      profile: activeProfile,
+      host,
+      port,
+      db:      dbLabel(),
+      ts:      new Date().toISOString(),
+    }) + '\n')
+  } else {
+    const w  = 46
+    const ln = (label: string, value: string) => console.log(`  ${label.padEnd(14)}: ${value}`)
+    console.log('\n' + '─'.repeat(w))
+    ln('Environment',  config.env)
+    ln('Config',       activeProfile)
+    ln('Env file',     activeEnvFile)
+    ln('Host',         host)
+    ln('Port',         String(port))
+    ln('Database',     dbLabel())
+    ln('Cache TTL',    `${config.cache.ttlMs / 60_000} min`)
+    console.log('─'.repeat(w))
+    console.log(`  API     →  http://localhost:${port}/api/health`)
+    console.log(`  Frontend→  http://localhost:5173  (Vite proxy → :${port})`)
+    console.log('─'.repeat(w) + '\n')
+  }
+}
+
+// app.listen() is the Express-idiomatic way — it creates an http.Server
+// internally and returns it so we can call .close() for graceful shutdown.
+const httpServer = app.listen(port, host, logStartup)
+
+// ─── HTTP connection tracking ─────────────────────────────────────────────────
+// Tracks every open socket so shutdown can destroy them immediately.
+// This is equivalent to server.closeAllConnections() (Node 18.2+) but works on
+// all Node versions and gives us an exact count for diagnostics.
+
+type AnySocket = { destroy(): void; once(event: 'close', cb: () => void): void }
+const _openSockets = new Set<AnySocket>()
+httpServer.on('connection', socket => {
+  _openSockets.add(socket as unknown as AnySocket)
+  socket.once('close', () => _openSockets.delete(socket as unknown as AnySocket))
+})
+
+// ─── Active-handle diagnostics ────────────────────────────────────────────────
+
+function logBlockingHandles(): void {
+  type AugmentedProcess = typeof process & {
+    _getActiveHandles?:  () => Array<{ constructor?: { name?: string } }>
+    _getActiveRequests?: () => unknown[]
+  }
+  const proc     = process as AugmentedProcess
+  const handles  = proc._getActiveHandles?.()  ?? []
+  const requests = proc._getActiveRequests?.() ?? []
+  console.error(`[shutdown] ${handles.length} active handle(s), ${requests.length} pending request(s)`)
+  for (const h of handles) {
+    console.error(`[shutdown]   ${h.constructor?.name ?? 'unknown'}`)
+  }
+}
+
+// ─── Graceful shutdown ────────────────────────────────────────────────────────
+// Called on SIGTERM (tsx watch file-change restart) and SIGINT (Ctrl-C).
+//
+// Design goals:
+//   - No process.exit() — Node exits naturally once the event loop is empty
+//   - No leaked timers — every setTimeout is either cleared or .unref()'d
+//   - No unhandled rejections — pool timeout is a single Promise, not Promise.race
+//   - tsx watch restart < 2 s — connections destroyed immediately, pool drained promptly
+//
+// Shutdown sequence:
+//   1. clearInterval        — removes the auto-complete timer from the event loop
+//   2. destroy HTTP sockets — all tracked sockets destroyed; server.close() fires immediately
+//   3. pool.end()           — pg drains active queries, closes TLS sockets (2 s timeout)
+//   4. unref remaining      — any pg-internal handles that survived are unref'd so the
+//                             event loop can drain naturally; each is logged for diagnostics
+
+async function shutdown(signal: string): Promise<void> {
+  const t0 = Date.now()
+  const elapsed = () => `${Date.now() - t0}ms`
+  console.log(`\n[server] ${signal} — shutting down`)
+
+  // ── 1. Stop the auto-complete interval ───────────────────────────────────
+  clearInterval(_autoCompleteTimer)
+
+  // ── 2. Destroy all open HTTP connections; close the server ───────────────
+  console.log(`[server] open connections: ${_openSockets.size}`)
+  for (const socket of _openSockets) socket.destroy()
+  _openSockets.clear()
+
+  await new Promise<void>((resolve, reject) => {
+    httpServer.close(err => (err ? reject(err) : resolve()))
+  }).catch(err => console.error('[server] server.close() error:', String(err)))
+  console.log(`[server] HTTP server closed (${elapsed()})`)
+
+  // ── 3. Drain the pg pool ─────────────────────────────────────────────────
+  // Wrapped in a single Promise with a self-clearing timeout so there is
+  // no possibility of a leaked rejection (which would re-trigger this path).
+  console.log('[server] Closing database pool...')
+  await new Promise<void>(resolve => {
+    const timer = setTimeout(() => {
+      console.error(`[server] pool.end() did not resolve within 2 s — continuing shutdown`)
+      logBlockingHandles()
+      resolve()
+    }, 2_000)
+    pool.end()
+      .then(() => {
+        clearTimeout(timer)
+        console.log(`[server] Database pool closed. (${elapsed()})`)
+      })
+      .catch(err => {
+        clearTimeout(timer)
+        console.error('[server] pool.end() error:', String(err))
+      })
+      .finally(resolve)
+  })
+
+  // ── 4. Unref any remaining handles ───────────────────────────────────────
+  // pg may leave internal TLS keepalive timers alive after pool.end().
+  // Unref-ing them tells Node "these do not need to keep the process alive."
+  // The event loop drains naturally once all ref'd handles are gone.
+  type AugmentedProcess = typeof process & {
+    _getActiveHandles?: () => Array<{
+      constructor?: { name?: string }
+      unref?: () => void
+    }>
+  }
+  const handles = (process as AugmentedProcess)._getActiveHandles?.() ?? []
+  if (handles.length > 0) {
+    console.log(`[server] unref-ing ${handles.length} remaining handle(s):`)
+    for (const h of handles) {
+      console.log(`[server]   ${h.constructor?.name ?? 'unknown'}`)
+      h.unref?.()
+    }
+  }
+
+  console.log(`[server] Shutdown complete (${elapsed()}) — event loop will drain naturally`)
+  // No process.exit() — Node exits when the event loop is empty.
+}
+
+let _shuttingDown = false
+function onSignal(signal: string): void {
+  if (_shuttingDown) return          // prevent double-shutdown on repeated signals
+  _shuttingDown = true
+  void shutdown(signal)
+}
+
+process.on('SIGTERM', () => onSignal('SIGTERM'))
+process.on('SIGINT',  () => onSignal('SIGINT'))
 

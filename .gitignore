@@ -77,3 +77,8 @@ coverage/
 
 # Lakebase migration dumps (contain full DB data — never commit)
 exports/
+
+# Local environment files
+.env
+.env.development
+.env.production

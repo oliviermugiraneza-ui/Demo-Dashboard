@@ -116,10 +116,16 @@ export class DemoRepository {
     `
     const countSql = `SELECT COUNT(*) AS total FROM public.demo_master ${clause}`
 
-    const [dataRes, countRes] = await Promise.all([
+    // Use allSettled so a secondary rejection can't reach unhandledRejection
+    // and crash the process — Node 15+ exits on unhandled rejections.
+    const [dataSettled, countSettled] = await Promise.allSettled([
       timedQuery<DemoRow>('DemoRepository.findAll', dataSql, dataParams),
       pool.query<{ total: string }>(countSql, params),
     ])
+    if (dataSettled.status  === 'rejected') throw dataSettled.reason
+    if (countSettled.status === 'rejected') throw countSettled.reason
+    const dataRes  = dataSettled.value
+    const countRes = countSettled.value
 
     return {
       data:  dataRes.rows,

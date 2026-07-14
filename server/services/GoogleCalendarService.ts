@@ -1,4 +1,5 @@
-import { pool } from '../db.js'
+import { pool }   from '../db.js'
+import { config } from '../config/index.js'
 import type { DemoNotificationData } from './NotificationService.js'
 
 const CALENDAR_ID = 'primary'
@@ -23,9 +24,9 @@ async function getAccessToken(): Promise<string> {
     method:  'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body:    new URLSearchParams({
-      client_id:     process.env.GOOGLE_CLIENT_ID     ?? '',
-      client_secret: process.env.GOOGLE_CLIENT_SECRET ?? '',
-      refresh_token: process.env.GOOGLE_REFRESH_TOKEN ?? '',
+      client_id:     config.gmail.clientId,
+      client_secret: config.gmail.clientSecret,
+      refresh_token: config.gmail.refreshToken,
       grant_type:    'refresh_token',
     }),
     signal: AbortSignal.timeout(10_000),
@@ -170,9 +171,9 @@ export class GoogleCalendarService {
 
   static credentialsConfigured(): boolean {
     return Boolean(
-      process.env.GOOGLE_CLIENT_ID &&
-      process.env.GOOGLE_CLIENT_SECRET &&
-      process.env.GOOGLE_REFRESH_TOKEN,
+      config.gmail.clientId &&
+      config.gmail.clientSecret &&
+      config.gmail.refreshToken,
     )
   }
 
