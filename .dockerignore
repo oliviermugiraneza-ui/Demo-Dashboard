@@ -1,0 +1,17 @@
+node_modules/
+frontend/
+dist/
+.env
+.env.*
+!.env.example
+!.env.production.example
+exports/
+*.log
+.DS_Store
+.git/
+.vscode/
+.idea/
+coverage/
+scripts/
+backend/
+docs/

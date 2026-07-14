@@ -154,7 +154,16 @@ function handleDbError(err: unknown, res: Response): void {
   res.status(500).json({ ok: false, error: String(err) })
 }
 
-// ─── Health ───────────────────────────────────────────────────────────────────
+// ─── Health + Version ─────────────────────────────────────────────────────────
+
+app.get('/api/version', (_req, res) => {
+  res.json({
+    ok:      true,
+    version: process.env.npm_package_version ?? '1.0.0',
+    env:     config.env,
+    ts:      new Date().toISOString(),
+  })
+})
 
 app.get('/api/health', async (_req, res) => {
   try {

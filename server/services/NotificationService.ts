@@ -3,6 +3,8 @@ import { pool } from '../db.js'
 import { DEMO_STATUS } from '../lib/demoStatus.js'
 import { config } from '../config/index.js'
 
+const IS_PRODUCTION = config.env === 'production'
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const TEST_RECIPIENT = 'olivier.mugiraneza@wayve.ai'
@@ -482,11 +484,11 @@ export function buildDemoEventEmailHtml(
     <td style="background:linear-gradient(135deg,#4F46E5 0%,#2563EB 100%);padding:28px 36px 24px;">
       <div style="font-size:22px;font-weight:800;color:#ffffff;letter-spacing:-.3px;">Demo Dashboard</div>
       <div style="font-size:15px;font-weight:600;color:#e0e7ff;margin-top:4px;">${label}</div>
-      <div style="margin-top:10px;display:inline-block;background:rgba(255,255,255,.15);
+      ${!IS_PRODUCTION ? `<div style="margin-top:10px;display:inline-block;background:rgba(255,255,255,.15);
                   border-radius:6px;padding:3px 10px;font-size:11px;font-weight:600;
                   color:#c7d2fe;letter-spacing:.05em;text-transform:uppercase;">
-        Local Docker Development
-      </div>
+        Development
+      </div>` : ''}
     </td>
   </tr>
 
@@ -515,8 +517,8 @@ export function buildDemoEventEmailHtml(
     <td style="padding:16px 36px;background:#f8fafc;border-top:1px solid #e2e8f0;border-radius:0 0 16px 16px;">
       <p style="margin:0;font-size:11px;color:#94a3b8;line-height:1.6;">
         Sent by <strong>Demo Dashboard</strong> &middot; ${timestamp}<br>
-        v${version} &middot; ${hostname}<br>
-        <em>This is a development notification — do not reply to this email.</em>
+        v${version}${!IS_PRODUCTION ? ` &middot; ${hostname}` : ''}
+        ${!IS_PRODUCTION ? '<br><em>Development environment — do not reply to this email.</em>' : ''}
       </p>
     </td>
   </tr>
