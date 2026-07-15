@@ -56,11 +56,6 @@ cp .env.example .env
 
 Edit `.env` and replace `<YOUR_OAUTH_TOKEN>` with the token from step 1:
 
-```env
-DATABASE_URL=postgresql://olivier.mugiraneza%40wayve.ai:<YOUR_OAUTH_TOKEN>@ep-soft-waterfall-e9retxot.database.eastus.azuredatabricks.net/databricks_postgres?sslmode=require
-API_PORT=3001
-```
-
 **Never commit `.env` to git.** It is already in `.gitignore`.
 
 ### 3. Install dependencies
