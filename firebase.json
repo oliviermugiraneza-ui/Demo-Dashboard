@@ -6,8 +6,8 @@
       {
         "source": "/api/**",
         "run": {
-          "serviceId": "demo-dashboard",
-          "region": "us-central1"
+          "serviceId": "demo-dashboard-api",
+          "region": "asia-northeast1"
         }
       },
       {
