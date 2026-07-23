@@ -29,7 +29,7 @@ Express API Server (:3001)
     |
     v
 Azure Databricks Lakebase PostgreSQL
-    Host: ep-soft-waterfall-e9retxot.database.eastus.azuredatabricks.net
+    Host: "Connect..."
     DB:   databricks_postgres
     SSL:  required
 ```
